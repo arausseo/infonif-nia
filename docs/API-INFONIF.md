@@ -11,13 +11,14 @@ confirmado y no debe convertirse en código que cobre dinero sin confirmarlo.
 
 Copias congeladas en `packages/api/src/datos/fixtures/infonif/`:
 
-| Fichero                   | Origen                                                                   |
-| ------------------------- | ------------------------------------------------------------------------ |
-| `campos-comprables.json`  | `GET /bases-de-datos/herramienta/fields.json?v5.3`                       |
-| `buscador-data.json`      | `GET /bases-de-datos/herramienta/buscador-data.json?v1.2`                |
-| `ejemplo-peticion.json`   | Aportado por el cliente                                                  |
-| `resumen-2026-08-08.json` | `GET https://bbdd-api.infonif.es/api/buscador/resumen` — datos vivos     |
-| `ejemplo-busqueda.json`   | `GET /api/buscador/buscar.asp?q=merca` — muestra aportada por el cliente |
+| Fichero                   | Origen                                                               |
+| ------------------------- | -------------------------------------------------------------------- |
+| `campos-comprables.json`  | `GET /bases-de-datos/herramienta/fields.json?v5.3`                   |
+| `buscador-data.json`      | `GET /bases-de-datos/herramienta/buscador-data.json?v1.2`            |
+| `ejemplo-peticion.json`   | Aportado por el cliente                                              |
+| `resumen-2026-08-08.json` | `GET https://bbdd-api.infonif.es/api/buscador/resumen` — datos vivos |
+| `ejemplo-busqueda.json`   | `GET /buscador/autocomplete/listar?q=…` — muestra del cliente        |
+| `ejemplo-respuesta.json`  | `POST /buscador/filtrar` — respuesta real, verificada en vivo        |
 
 ---
 
@@ -261,18 +262,64 @@ consolidadas + 6.096 ambas ≈ 265.000, muy lejos del 1.128.190 de
 
 ## 3. Petición y respuesta de conteo
 
-Petición: `ejemplo-peticion.json`. Todas las claves van siempre, con array vacío
-si no se filtra. Los valores son los `id` de `buscador-data.json`.
+```
+POST https://bbdd-api.infonif.es/api/buscador/filtrar?resumen=false
+apikey: <INFONIF_API_KEY>
+```
 
-`filtros` es un array de estados acumulativos —primero `{Provincias}`, luego
-`{Provincias, antiguedad}`—. **Confirmado** en `utils.js:172` (`beforeOrderFilters`):
-recorre los filtros aplicados en orden, va acumulando en un objeto y empuja una
-instantánea en cada paso. Es el embudo, y es lo que permite pintar cuántas
-empresas quedan tras cada criterio.
+Petición: `ejemplo-peticion.json`. Respuesta real: `ejemplo-respuesta.json`
+(ambas verificadas contra el API en vivo el 08/08/2026). Todas las claves van
+siempre, con array vacío si no se filtra. Los valores son los `id` del resumen.
 
-Es **obligatorio**: `search.js:286` no llama al API si `filtros` viene vacío.
+Tarda ~1,1 s. Devuelve 81 para el ejemplo del cliente, que es exactamente lo que
+enseña su captura de pantalla.
 
-La respuesta es una lista plana de `{ id, data }` con dos familias de `id`:
+### Forma de la respuesta
+
+```json
+{
+  "filtro.1":           { "cantidad": 81, "campos_disponibles": [ … ] },
+  "cantidad":           81,
+  "campos_disponibles": [ … 1.234 entradas … ]
+}
+```
+
+### `filtros` NO devuelve el embudo entero
+
+`filtros` es un array de estados acumulativos, construido en `utils.js:172`
+(`beforeOrderFilters`). Es **obligatorio**: `search.js:286` ni siquiera llama al
+API si viene vacío.
+
+Pero la respuesta **solo trae el último paso**, con la clave `filtro.{n-1}`,
+siendo `n` el número de elementos de `filtros`. Verificado:
+
+| `filtros` enviados                | Claves devueltas | `cantidad` |
+| --------------------------------- | ---------------- | ---------: |
+| `[Teruel]`                        | `filtro.0`       |      5.162 |
+| `[Teruel]`, `[Teruel+antigüedad]` | `filtro.1`       |        275 |
+| … + `[+empleados]`                | `filtro.2`       |         80 |
+
+O sea: **para pintar el embudo hay que llamar una vez por criterio**, que es lo
+que hace el frontend —va acumulando los `filtro.N` de llamadas sucesivas en su
+store—. A 1,1 s por llamada, los cuatro criterios del flujo C del demo son unos
+4,5 s. Encaja bien con el protocolo de `status`: un evento por criterio, con su
+conteo como `detalle`.
+
+### `campos_requeridos` recorta de verdad
+
+Mismo filtro, con y sin exigir email:
+
+```
+Teruel + antigüedad rango.2                        → 275 empresas
+Teruel + antigüedad rango.2 + campos_requeridos:[Email] →  81 empresas
+```
+
+**Exigir email se lleva el 70 % del segmento.** Nia tiene que decirlo, no
+aplicarlo callando: se pagan menos registros, pero también se compran menos.
+
+### Las dos familias de `id` en `campos_disponibles`
+
+Es una lista plana de `{ id, data }`:
 
 **a) Disponibilidad por campo comprable** — la cola de la respuesta:
 
@@ -409,8 +456,8 @@ Es el `requiredFilter` de `fields.json`. Su tooltip:
 `campos_requeridos` y **el segmento se reduce**.
 
 O sea: activar «Email obligatorio» baja el número de empresas y sube la
-proporción de registros facturables. Nia tiene que explicar ese intercambio, no
-solo aplicarlo.
+proporción de registros facturables. Medido contra el API en vivo, el recorte es
+del 70 % (§3). Nia tiene que explicar ese intercambio, no solo aplicarlo.
 
 En el estado del frontend `campos_requeridos` es un objeto `{Email: true}`; se
 aplana a array de nombres justo antes de enviar (`Buscador.vue:505`).
@@ -444,20 +491,29 @@ la herramienta decide antes de devolver el dato.
 
 ## 5. El otro API: búsqueda de empresa por nombre
 
-Además del buscador de listados hay un **API interno de búsqueda sobre
-Elasticsearch**, servido por el propio ASP:
+Además del buscador de listados hay una búsqueda por nombre sobre Elasticsearch,
+con **un universo más amplio** pero casi sin cuentas ni información extra. Sirve
+para _encontrar_ una empresa, no para _segmentar_.
+
+Tiene dos puertas a lo mismo:
 
 ```
-GET https://infonif.economia3.com/api/buscador/buscar.asp?q=merca
+GET https://infonif.economia3.com/api/buscador/buscar.asp?q=merca      ← interna, da 403 desde fuera
+GET https://bbdd-api.infonif.es/api/buscador/autocomplete/listar?q=…   ← la que usamos
+    apikey: <INFONIF_API_KEY>
 ```
 
-**Es interno: desde fuera devuelve 403** (probado con y sin cabeceras de
-navegador). El despliegue de Nia tendrá que alcanzarlo desde la red del IIS, igual
-que `/internal/mint` pero al revés.
+**Nia usa la segunda.** Verificada el 08/08/2026: responde en ~0,7 s y devuelve
+el mismo esquema. Sin la cabecera `apikey` da **500**, no 401.
 
-Cubre **un universo más amplio** que el buscador de listados, pero la mayoría de
-esas empresas no tienen cuentas ni información extra. Es decir: sirve para
-_encontrar_ una empresa, no para _segmentar_.
+Comportamiento medido:
+
+- **Tope de 25 resultados**, y no admite paginación: `size`, `rows` y `limit` se
+  ignoran. Para el chat sobra —la vista previa son 5 filas— pero significa que
+  no se puede recorrer un resultado amplio por aquí.
+- **Mínimo de 3 caracteres**: `q=me` devuelve 0, `q=mer` devuelve 25.
+- **Busca por NIF completo con letra** (`A46103834` → 1 resultado). Solo la parte
+  numérica (`46103834`) devuelve 0. Hay que normalizar el NIF antes de consultar.
 
 Muestra en `fixtures/infonif/ejemplo-busqueda.json`. Respuesta:
 `{ "empresas": [ … ] }`, cada una con claves de una o dos letras:
@@ -478,9 +534,10 @@ Muestra en `fixtures/infonif/ejemplo-busqueda.json`. Respuesta:
 
 ### Un mismo NIF sale varias veces
 
-En la muestra, `A86868114` aparece dos veces y `A83246314` cuatro, siempre con el
-mismo `nifn` y el mismo `url` pero distinta `rs`: son denominaciones históricas.
-Solo una lleva `ea: 1`.
+No es cosa de la muestra: medido contra el API en vivo, **`q=merca` devuelve 25
+resultados con solo 20 NIF distintos**, y 15 llevan `ea: 1`. `A86868114` sale dos
+veces y `A83246314` cuatro, siempre con el mismo `nifn` y el mismo `url` pero
+distinta `rs`: son denominaciones históricas.
 
 **`buscar_empresa` tiene que deduplicar por NIF y quedarse con la de `ea: 1`**, o
 el usuario verá cuatro veces la misma empresa. Las demás sirven como sinónimos de
@@ -506,7 +563,7 @@ Ninguna decisión de `docs/ADR.md` se toca sin hablarlo.
 | Dónde                      | Qué                                                                                                                                                            |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CONTRATOS §4               | **Cambia el destino del compilador**: no emite DSL de Elasticsearch, emite la petición de `POST /buscador/filtrar`. `datos/elastic/` pasa a ser `datos/bbdd/`. |
-| CONTRATOS §4               | Aparece una **segunda fuente**: `buscar.asp` para localizar empresa por nombre. Dos clientes, no uno.                                                          |
+| CONTRATOS §4               | Aparece una **segunda llamada**: `autocomplete/listar` para localizar empresa por nombre.                                                                      |
 | CONTRATOS §3               | `FiltroSegmento` puede seguir con números libres; compila a `empleados:min\|max`, `ahnos:min\|max`, `cnae\|NNNN`.                                              |
 | `datos/precios.ts`         | Desbloqueado. Fórmula en §4, IVA 21 %, sin mínimo, pago en euros o créditos.                                                                                   |
 | `datos/geo/provincias.ts`  | Canónico = ruta `Comunidad\|Provincia` del INE. Y hay que resolver el duplicado de Tenerife.                                                                   |
@@ -515,25 +572,44 @@ Ninguna decisión de `docs/ADR.md` se toca sin hablarlo.
 | CONTRATOS §5               | Puente de sesión validado.                                                                                                                                     |
 | ADR-003                    | Dice «Elasticsearch se usa tal cual está». Sigue siendo cierto, pero **nosotros no lo tocamos**: hablamos con dos APIs que lo tienen detrás. Merece una nota.  |
 
-## 7. Lo que sigue pendiente
+## 7. Endpoints que usa Nia
 
-Resuelto en esta ronda: el modelo de precio, el mínimo de registros, el desfase de
-ejercicios, el segmento `0|1|5`, el papel de `filtros`, y si el buscador es
-Elasticsearch (es un API delante). No hay Swagger: este documento es la
-especificación.
+Todo cuelga de `INFONIF_API_URL` (`https://bbdd-api.infonif.es/api`) con la
+cabecera `apikey`. Verificados en vivo el 08/08/2026.
 
-Queda:
+| Uso en Nia                                 | Llamada                                | Latencia |
+| ------------------------------------------ | -------------------------------------- | -------- |
+| `buscar_empresa`                           | `GET /buscador/autocomplete/listar?q=` | ~0,7 s   |
+| `construir_segmento` (conteo y cotización) | `POST /buscador/filtrar?resumen=false` | ~1,1 s   |
+| Vocabulario de filtros y facetas           | `GET /buscador/resumen`                | ~26 s    |
+| Derechos de listados                       | `GET /buscador/planBBDD?idusuario=`    | —        |
 
-1. **Acceso de Nia a los dos APIs.** ¿Credenciales propias contra
-   `bbdd-api.infonif.es`, o el token del usuario? ¿Y `buscar.asp`, que es interno,
-   se alcanza desde donde despleguemos? De esto depende que `datos/` funcione.
-2. **Confirmar `ea` y `r`** en la respuesta de búsqueda. Lo de arriba es
-   deducción sobre 25 registros, y `ea` decide qué ve el usuario.
-3. **Créditos**: cuánto vale un crédito y cómo se descuenta. `planBBDD` habla de
-   `numRegistrosMensuales`, que parece otra cosa distinta de los créditos.
-4. **El duplicado `Sta. Cruz De Tenerife`**: ¿es un error de sus datos que van a
-   corregir, o hay que convivir con él?
-5. **`tipo_cuentas` (265.000) vs `cuentas_disponibles` de 2024 (1.128.190)**:
+`/buscador/resumen` a 26 s **no se llama por petición del usuario**: se carga al
+arrancar y se refresca en segundo plano contra Redis. Un `status` de 26 segundos
+no lo aguanta nadie.
+
+Sobre la apikey: es la misma que va incrustada en el bundle público del buscador
+actual (`utils.js:1494`), así que **no es un secreto y no controla acceso**. Vive
+en `INFONIF_API_KEY` para poder rotarla sin tocar código, y en los logs va
+redactada como el resto.
+
+## 8. Lo que sigue pendiente
+
+Resuelto: modelo de precio, mínimo de registros, desfase de ejercicios, el
+segmento `0|1|5`, el papel de `filtros`, qué hay detrás del buscador, y el acceso
+—`bbdd-api.infonif.es` es alcanzable desde internet con apikey—. No hay Swagger:
+este documento es la especificación.
+
+Queda, y ninguna bloquea la Fase 1:
+
+1. **Confirmar `ea` y `r`** en la respuesta de búsqueda. `ea` decide qué empresa
+   ve el usuario cuando hay denominaciones históricas, así que conviene estar
+   seguros de que significa «denominación vigente».
+2. **Créditos**: cuánto vale un crédito y cómo se descuenta. `planBBDD` habla de
+   `numRegistrosMensuales`, que parece otra cosa.
+3. **El duplicado `Sta. Cruz De Tenerife`** (8 empresas): ¿lo corrigen o
+   convivimos?
+4. **`tipo_cuentas` (~265.000) vs `cuentas_disponibles` de 2024 (1.128.190)**:
    cuentan cosas distintas y no sabemos cuáles.
-6. **Precios de los informes** (RAI 6 €, Comercial 15 €, Riesgo 30 €, Cuentas
-   10 €) y de los packs: son otra línea de producto y siguen sin confirmar.
+5. **Precios de informes y packs** (RAI, Comercial, Riesgo, Cuentas Anuales): otra
+   línea de producto, sin confirmar. Solo hace falta para la Fase 5.

@@ -17,7 +17,15 @@ const EsquemaEntorno = z.object({
     .default("info"),
   ORIGENES_PERMITIDOS: z.string().default("http://localhost:5174"),
 
-  // Elasticsearch. ES_VERSION decide la forma de las rutas (ver datos/elastic/rutas.ts).
+  // API de Infonif: el origen real de los datos (docs/API-INFONIF.md).
+  // La apikey no es un secreto —viaja en el bundle público del buscador actual—,
+  // pero se configura para poder rotarla sin tocar código.
+  INFONIF_API_URL: z.string().url().default("https://bbdd-api.infonif.es/api"),
+  INFONIF_API_KEY: z.string().optional(),
+  INFONIF_TIEMPO_LIMITE_MS: z.coerce.number().int().positive().default(45_000),
+
+  // Elasticsearch local, solo para desarrollar contra los fixtures.
+  // ES_VERSION decide la forma de las rutas (ver datos/elastic/rutas.ts).
   ES_URL: z.string().url().default("http://localhost:9200"),
   ES_INDICE: z.string().min(1).default("empresas"),
   ES_VERSION: z.enum(["6", "7"]).default("7"),
