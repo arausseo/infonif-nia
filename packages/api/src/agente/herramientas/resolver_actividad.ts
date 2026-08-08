@@ -41,8 +41,13 @@ enséñaselos y pregúntale antes de contar.`,
         actividades: resolucion.actividades.map((a) => ({
           cnae: a.cnae,
           descripcion: a.descripcion,
-          empresas: a.empresas,
+          // El nombre lleva «enEspana» a propósito: cuando se llamaba solo
+          // «empresas», el modelo mezclaba este total nacional con el conteo del
+          // segmento y presentaba «582 panaderías en Madrid: 3.689 del CNAE
+          // 1071…», que no significa nada.
+          empresasEnEspana: a.empresas,
         })),
+        nota: "empresasEnEspana es el total nacional de cada CNAE, no el del segmento. No lo mezcles con el conteo.",
       },
     };
   },

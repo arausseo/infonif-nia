@@ -42,6 +42,8 @@ export interface Paso {
 
 export interface Tarjeta {
   tipo: "segmento" | "confirmacion" | "ficha" | "bloqueado";
+  /** Dos tarjetas con la misma clave son la misma: la segunda reemplaza. */
+  clave?: string;
   datos: Record<string, unknown>;
 }
 

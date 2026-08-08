@@ -3,6 +3,7 @@ import {
   calcularCoste,
   campoPorNombre,
   catalogoCampos,
+  catalogoParaElModelo,
   cotizarListado,
   planesDeRegistros,
   recomendarPlan,
@@ -266,5 +267,45 @@ describe("recomendarPlan", () => {
 
   it("un segmento vacío no tiene plan que recomendar", () => {
     expect(recomendarPlan(0, 0)).toBeUndefined();
+  });
+});
+
+describe("nombres de campo: el modelo no tiene que saberse los códigos", () => {
+  it("encuentra los financieros por su etiqueta, no solo por su número", () => {
+    // El fallo real: el modelo pidió «EBITDA», la herramienta dijo que no
+    // existía y el modelo se lo comunicó al usuario. Existe: es el 99016.
+    expect(campoPorNombre("EBITDA")?.name).toBe("99016");
+    expect(campoPorNombre("ebitda")?.name).toBe("99016");
+    expect(campoPorNombre("Ventas")?.name).toBe("99053");
+    expect(campoPorNombre("Resultado del ejercicio")?.name).toBe("49500");
+    expect(campoPorNombre("Fondo de maniobra")?.name).toBe("99024");
+  });
+
+  it("tolera acentos, mayúsculas y espacios", () => {
+    expect(campoPorNombre("Razón social")?.name).toBe("RazonSocial");
+    expect(campoPorNombre("razon social")?.name).toBe("RazonSocial");
+    expect(campoPorNombre("  TELÉFONO ")?.name).toBe("Telefono");
+  });
+
+  it("el código numérico sigue funcionando", () => {
+    expect(campoPorNombre("99016")?.label).toBe("EBITDA");
+  });
+
+  it("lo que de verdad no existe, no existe", () => {
+    expect(campoPorNombre("Beneficio bruto ajustado")).toBeUndefined();
+  });
+
+  it("cotizar por etiqueta da lo mismo que por código", () => {
+    const porEtiqueta = cotizarListado(["EBITDA", "Ventas"], DISPONIBLES, 81);
+    const porCodigo = cotizarListado(["99016", "99053"], DISPONIBLES, 81);
+    expect(porEtiqueta.total).toBe(porCodigo.total);
+    expect(porEtiqueta.camposSinDato).toEqual([]);
+  });
+
+  it("el catálogo que ve el modelo lleva nombre y precio", () => {
+    const catalogo = catalogoParaElModelo();
+    expect(catalogo).toHaveLength(34);
+    const ebitda = catalogo.find((c) => c.campo === "99016");
+    expect(ebitda).toEqual({ campo: "99016", nombre: "EBITDA", precio: 0.05 });
   });
 });

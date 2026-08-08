@@ -95,6 +95,9 @@ permite entender por qué el segmento se le ha quedado corto y qué aflojar.`,
       },
       paraLaUI: {
         tipo: "segmento",
+        // Misma clave que cotizar: si luego se cotiza, se reemplaza esta tarjeta
+        // en lugar de apilar dos precios del mismo listado.
+        clave: "segmento",
         datos: {
           empresas: segmento.cantidad,
           embudo: segmento.embudo,

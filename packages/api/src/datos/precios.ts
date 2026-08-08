@@ -45,8 +45,46 @@ export function catalogoCampos(): readonly CampoComprable[] {
   return CATALOGO;
 }
 
+/**
+ * Busca un campo por su nombre técnico o por su etiqueta.
+ *
+ * Los campos financieros se llaman `99016`, `99053`, `49500`… y su etiqueta es
+ * «EBITDA», «Ventas», «Resultado del ejercicio». Exigir el código numérico
+ * obligaba al modelo a adivinarlo, y cuando no acertaba **decía que el campo no
+ * existe**: pasó en una prueba real con el EBITDA, que sí está en el catálogo.
+ *
+ * Una herramienta que solo acepta identificadores internos no es una
+ * herramienta, es un examen.
+ */
 export function campoPorNombre(nombre: string): CampoComprable | undefined {
-  return POR_NOMBRE.get(nombre);
+  const exacto = POR_NOMBRE.get(nombre);
+  if (exacto) return exacto;
+  return POR_ETIQUETA.get(normalizarNombre(nombre));
+}
+
+function normalizarNombre(texto: string): string {
+  return texto
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+/** etiqueta y nombre normalizados → campo. Se indexan los dos. */
+const POR_ETIQUETA = new Map<string, CampoComprable>();
+for (const campo of CATALOGO) {
+  POR_ETIQUETA.set(normalizarNombre(campo.label), campo);
+  POR_ETIQUETA.set(normalizarNombre(campo.name), campo);
+}
+
+/** El catálogo tal como se le enseña al modelo: código, etiqueta y precio. */
+export function catalogoParaElModelo(): {
+  campo: string;
+  nombre: string;
+  precio: number;
+}[] {
+  return CATALOGO.map((c) => ({ campo: c.name, nombre: c.label, precio: c.price }));
 }
 
 // ─── Cotización ───────────────────────────────────────────────────────────────
@@ -130,7 +168,7 @@ export function cotizarListado(
   const camposSinDato: string[] = [];
 
   for (const nombre of camposPedidos) {
-    const campo = POR_NOMBRE.get(nombre);
+    const campo = campoPorNombre(nombre);
     if (!campo) {
       camposSinDato.push(nombre);
       continue;

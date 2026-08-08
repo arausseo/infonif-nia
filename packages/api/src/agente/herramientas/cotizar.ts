@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { FiltroSegmento } from "../../datos/infonif/filtros.js";
 import { contarSegmento } from "../../datos/infonif/segmentos.js";
-import { calcularCoste, catalogoCampos, recomendarPlan } from "../../datos/precios.js";
+import {
+  calcularCoste,
+  catalogoParaElModelo,
+  recomendarPlan,
+} from "../../datos/precios.js";
 import { definirTool } from "../tipos.js";
 
 export default definirTool({
@@ -13,7 +17,13 @@ El precio no es una estimación: cada campo se cobra por los registros que
 REALMENTE lo traen, y eso lo dice la base de datos. NO calcules precios tú.
 
 Un plan solo compensa por volumen o por uso repetido. Si el listado suelto sale
-más barato, dilo: la herramienta ya lo indica en «compensa».`,
+más barato, dilo: la herramienta ya lo indica en «compensa».
+
+Los campos se piden por su nombre corriente: «EBITDA», «Ventas», «Email»,
+«Razón social», «Resultado del ejercicio». Si alguno no existe, la herramienta
+devuelve el catálogo entero en «catalogo»: mira ahí y vuelve a pedirlo bien.
+**NUNCA le digas al usuario que un campo no existe sin haber visto ese
+catálogo**, porque casi siempre existe con otro nombre.`,
   progreso: "Calculando el precio",
 
   esquema: z
@@ -23,7 +33,9 @@ más barato, dilo: la herramienta ya lo indica en «compensa».`,
         .array(z.string())
         .min(1)
         .max(34)
-        .describe("Nombres de campo del catálogo, p. ej. CIF, RazonSocial, Email, 99053"),
+        .describe(
+          "Campos por su nombre corriente: EBITDA, Ventas, Email, Razón social, Teléfono…",
+        ),
     })
     .strict(),
 
@@ -67,7 +79,9 @@ más barato, dilo: la herramienta ya lo indica en «compensa».`,
         ...(coste.enEuros.camposSinDato.length > 0
           ? {
               camposDesconocidos: coste.enEuros.camposSinDato,
-              catalogo: catalogoCampos().map((c) => c.name),
+              // Con etiquetas, no solo códigos: es lo que le permite corregirse
+              // en vez de decirle al usuario que el campo no existe.
+              catalogo: catalogoParaElModelo(),
             }
           : {}),
         ...(plan
@@ -83,6 +97,7 @@ más barato, dilo: la herramienta ya lo indica en «compensa».`,
       },
       paraLaUI: {
         tipo: "segmento",
+        clave: "segmento",
         datos: { empresas: segmento.cantidad, coste, plan },
       },
     };

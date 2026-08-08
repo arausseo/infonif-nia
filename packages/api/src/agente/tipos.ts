@@ -16,6 +16,15 @@ export interface ContextoPagina {
 /** Una tarjeta para la interfaz. No entra al contexto del modelo. */
 export interface Tarjeta {
   tipo: "segmento" | "confirmacion" | "ficha" | "bloqueado";
+  /**
+   * Identidad de la tarjeta dentro del turno. Dos tarjetas con la misma clave
+   * son la misma cosa en dos momentos: la segunda REEMPLAZA a la primera.
+   *
+   * Sin esto, pedir un segmento y luego cotizarlo dejaba dos tarjetas con dos
+   * precios distintos del mismo listado, una encima de otra. Pasó en una prueba
+   * real. Es la misma idea que el uid=197609(alsen) gid=197609 groups=197609 de los pasos: estado, no bitácora.
+   */
+  clave?: string;
   datos: Record<string, unknown>;
 }
 

@@ -216,3 +216,59 @@ describe("parser del stream SSE", () => {
     expect(evento).toEqual({ evento: "texto", datos: { delta: "hola" } });
   });
 });
+
+describe("identidad de las tarjetas", () => {
+  it("una tarjeta con la misma clave REEMPLAZA a la anterior", () => {
+    // Pedir un segmento y luego cotizarlo dejaba dos tarjetas con dos precios
+    // distintos del mismo listado, una encima de otra. Pasó en una prueba real.
+    const turno = correr([
+      [
+        {
+          evento: "tarjeta",
+          datos: {
+            tipo: "segmento",
+            clave: "segmento",
+            datos: { empresas: 540, total: 43.38 },
+          },
+        },
+        T0,
+      ],
+      [
+        {
+          evento: "tarjeta",
+          datos: {
+            tipo: "segmento",
+            clave: "segmento",
+            datos: { empresas: 540, total: 62.67 },
+          },
+        },
+        T0 + 500,
+      ],
+    ]);
+
+    expect(turno.tarjetas).toHaveLength(1);
+    expect(turno.tarjetas[0]?.datos["total"]).toBe(62.67);
+  });
+
+  it("sin clave se acumulan: dos fichas son dos empresas distintas", () => {
+    const turno = correr([
+      [{ evento: "tarjeta", datos: { tipo: "ficha", datos: { nif: "A1" } } }, T0],
+      [{ evento: "tarjeta", datos: { tipo: "ficha", datos: { nif: "B2" } } }, T0 + 10],
+    ]);
+    expect(turno.tarjetas).toHaveLength(2);
+  });
+
+  it("claves distintas conviven", () => {
+    const turno = correr([
+      [
+        { evento: "tarjeta", datos: { tipo: "segmento", clave: "segmento", datos: {} } },
+        T0,
+      ],
+      [
+        { evento: "tarjeta", datos: { tipo: "bloqueado", clave: "compra", datos: {} } },
+        T0 + 10,
+      ],
+    ]);
+    expect(turno.tarjetas.map((t) => t.clave)).toEqual(["segmento", "compra"]);
+  });
+});

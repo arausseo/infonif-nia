@@ -48,8 +48,20 @@ export function aplicar(turno: Turno, evento: EventoServidor, ahora: number): Tu
     case "texto":
       return { ...turno, texto: turno.texto + evento.datos.delta };
 
-    case "tarjeta":
-      return { ...turno, tarjetas: [...turno.tarjetas, evento.datos] };
+    case "tarjeta": {
+      const nueva = evento.datos;
+      // Una tarjeta con clave conocida sustituye a la anterior en su sitio:
+      // cotizar un segmento no añade una segunda tarjeta, actualiza la que hay.
+      const previa = nueva.clave
+        ? turno.tarjetas.findIndex((t) => t.clave === nueva.clave)
+        : -1;
+
+      if (previa === -1) return { ...turno, tarjetas: [...turno.tarjetas, nueva] };
+
+      const tarjetas = [...turno.tarjetas];
+      tarjetas[previa] = nueva;
+      return { ...turno, tarjetas };
+    }
 
     case "fin":
       return { ...turno, enCurso: false, duracion: ahora - inicioDe(turno, ahora) };
