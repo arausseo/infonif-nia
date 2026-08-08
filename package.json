@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "servicios:arriba": "docker compose up -d",
     "servicios:abajo": "docker compose down",
-    "verificar": "pnpm --filter @nia/api run verificar"
+    "verificar": "pnpm --filter @nia/api run verificar",
+    "demo": "pnpm --filter @nia/api run demo"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",

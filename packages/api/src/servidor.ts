@@ -8,6 +8,7 @@ import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
+import { registrarConversar } from "./rutas/conversar.js";
 
 export function construirServidor() {
   const app = Fastify({ loggerInstance: registro, disableRequestLogging: false });
@@ -29,6 +30,8 @@ export function construirServidor() {
       cacheResumen: estadoCacheResumen(),
     };
   });
+
+  registrarConversar(app);
 
   app.setErrorHandler((error, peticion, respuesta) => {
     if (esErrorNia(error)) {

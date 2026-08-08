@@ -9,9 +9,11 @@
     "start": "node dist/servidor.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "verificar": "tsx scripts/comprobar-en-vivo.ts"
+    "verificar": "tsx scripts/comprobar-en-vivo.ts",
+    "demo": "tsx scripts/guion-demo.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
     "@fastify/cors": "^10.0.1",
     "@nia/semantica": "workspace:*",
     "dotenv": "^16.4.5",
@@ -19,7 +21,8 @@
     "ioredis": "^5.4.1",
     "mssql": "^11.0.1",
     "pino": "^9.5.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

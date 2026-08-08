@@ -100,22 +100,50 @@ nunca absoluto**.
 
 **Objetivo:** el bucle gira y las herramientas responden. Sin interfaz todavía.
 
-- [ ] `definirTool()` + registro que deriva JSON Schema desde Zod
-- [ ] Bucle de herramientas con freno de vueltas (máx. 8) y manejo de `tool_use`
+- [x] `definirTool()` + registro que deriva JSON Schema desde Zod
+- [x] Bucle de herramientas con freno de vueltas (máx. 8) y manejo de `tool_use`
       múltiples en un turno
-- [ ] Endpoint SSE `POST /v1/conversar` con todos los eventos de CONTRATOS §1
-- [ ] Emisión de `status` desde el bucle (`content_block_start`) y desde los
+- [x] Endpoint SSE `POST /v1/conversar` con todos los eventos de CONTRATOS §1
+- [x] Emisión de `status` desde el bucle (`content_block_start`) y desde los
       ejecutores (`ctx.progreso`)
-- [ ] Las 9 herramientas de lectura, con doble canal `paraElModelo`/`paraLaUI`
-- [ ] Prompt de sistema con las reglas no negociables
-- [ ] Persistencia de conversación en Redis
-- [ ] Caché de prompt sobre el bloque de sistema y las herramientas
-- [ ] Trazas en Langfuse
+- [x] Las 9 herramientas de lectura, con doble canal `paraElModelo`/`paraLaUI`
+- [x] Prompt de sistema con las reglas no negociables
+- [x] Persistencia de conversación en Redis
+- [x] Caché de prompt sobre el bloque de sistema y las herramientas
+- [x] Trazas, con metadatos y sin contenido
 
 **Aceptación:** con `curl` sobre el endpoint SSE, la frase _"empresas de logística
 en Valencia y Castellón, más de 20 empleados, que facturen sobre 2 millones"_
 produce eventos `status` en orden y un conteo correcto. Un usuario sin derechos
 recibe `requiereCompra` y **el dato de pago no aparece en la traza de Langfuse**.
+
+**Cumplida** (08/08/2026). Con `curl` sobre el endpoint salen `status` s1 y s2 en
+orden, actualizándose en sitio, y 345 empresas con su embudo. Un anónimo que
+pregunta por las ventas de Mercadona recibe `requiereCompra` y tarjeta
+`bloqueado`; el mismo mensaje con plan devuelve 34.059 millones de 2024.
+
+La traza no lleva ni el mensaje, ni la respuesta, ni los resultados de las
+herramientas: solo qué herramientas se usaron, cuánto tardaron y cuántos tokens
+costó. Es una decisión, no un descuido — sacar datos mercantiles de terceros a un
+sistema de observabilidad habría que hablarlo antes.
+
+`pnpm demo` corre los tres flujos del guion contra el agente real y comprueba que
+el B no opina sobre el riesgo.
+
+Dos cosas que salieron de probarlo, no de escribirlo:
+
+- **El modelo se inventó un precio.** Dijo «5 € + IVA» de un Informe Comercial
+  que cuesta 15. La herramienta le daba el SKU pero no el importe, así que
+  rellenó el hueco. Ahora el precio viaja en el resultado y el guion lo
+  comprueba. Lección general: si una herramienta deja un hueco donde debería ir
+  un dato, el modelo lo rellena.
+- **`peticion.raw` emite «close» al terminar de leer el cuerpo**, no cuando el
+  cliente se va. Escuchar ahí abortaba todos los turnos antes de empezar. Va en
+  la respuesta y comprobando `writableFinished`.
+
+Queda fuera: `/internal/mint` es de la Fase 4, así que hoy el `usuarioId` viaja en
+el cuerpo de la petición. **Eso no puede llegar a producción**: un usuario no
+decide quién es.
 
 ---
 

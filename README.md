@@ -30,7 +30,7 @@ packages/
   api/
     src/
       datos/        # API de Infonif, precios y derechos. NO conoce el modelo de lenguaje
-      agente/       # bucle, herramientas, SSE, prompts   (Fase 3)
+      agente/       # bucle de herramientas, las 9 herramientas, SSE y prompt
       comun/        # config, logging, errores
     scripts/        # generar-fixtures.ts, sembrar.ts
   widget/           # React 18 + Vite → bundle único en Shadow DOM
@@ -50,6 +50,7 @@ demo/               # página que simula el ASP Classic
 | `pnpm test`                        | Vitest en todo el workspace                             |
 | `pnpm typecheck`                   | `tsc --noEmit` en cada paquete                          |
 | `pnpm verificar`                   | Ejercita la capa de datos contra el API real de Infonif |
+| `pnpm demo`                        | Corre los tres flujos del guion contra el agente real   |
 | `pnpm embeddings`                  | Regenera los vectores CNAE (Fase 2)                     |
 | `pnpm servicios:arriba` / `:abajo` | Docker Compose                                          |
 
@@ -58,4 +59,4 @@ el `widget.js` único que el ASP embebe.
 
 ## Estado
 
-Fases 0 (andamiaje), 1 (capa de datos) y 2 (capa semántica) completas. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.
+Fases 0 a 3 completas: andamiaje, capa de datos, capa semántica y agente. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.

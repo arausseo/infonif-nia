@@ -284,3 +284,31 @@ export function recomendarPlan(
     mereceLaPenaParaEsteListado: mejor.coste < costeSueltoConIva,
   };
 }
+
+// ─── Informes sueltos ─────────────────────────────────────────────────────────
+
+const Informe = z.object({
+  sku: z.string(),
+  nombre: z.string(),
+  precio: z.number().positive(),
+  descripcion: z.string(),
+});
+
+export type Informe = z.infer<typeof Informe>;
+
+const INFORMES: readonly Informe[] = z.array(Informe).parse(skus.informes);
+
+/**
+ * Precio de un informe suelto.
+ *
+ * Existe porque el modelo se inventó un precio en la primera prueba del guion:
+ * dijo «5 € + IVA» de un Informe Comercial que cuesta 15 €. Si la herramienta no
+ * le da la cifra, se la inventa. Ahora se la da.
+ */
+export function informePorSku(sku: string): Informe | undefined {
+  return INFORMES.find((i) => i.sku === sku);
+}
+
+export function catalogoInformes(): readonly Informe[] {
+  return INFORMES;
+}
