@@ -156,18 +156,33 @@ Logística, para calibrar el demo:
 | 5224 | Manipulación de mercancías             |      281 |
 | 4942 | Servicios de mudanza                   |      220 |
 
-### Rangos cerrados, no números libres
+### Rangos: hay enumeración **y** rango libre
+
+Las facetas publican rangos cerrados…
 
 ```
 antiguedad: rango.0 (80 años o más) … rango.5 (reciente constitución) + incluir_null
 empleados:  rango.0 (<10) · rango.1 (10-49) · rango.2 (50-249) · rango.3 (≥250) + incluir_null
 ```
 
-**El `FiltroSegmento` de CONTRATOS §3 no encaja.** Allí `empleados` y
-`antiguedadMinAnios` son números libres; aquí son enumeraciones. «Más de 20
-empleados» no es expresable: hay que traducirlo a `rango.1`+ (10-49) y avisar de
-que el corte real es en 10, o dejarlo fuera del filtro y advertirlo. Es una
-decisión de producto, no técnica.
+…pero el filtro acepta además valores con prefijo, que el frontend construye a
+mano (§3). El mismo array admite las dos formas:
+
+| Filtro                   | Formas aceptadas                                                  |
+| ------------------------ | ----------------------------------------------------------------- |
+| `empleados`              | `"rango.N"` · `"empleados:20\|99999999"`                          |
+| `antiguedad`             | `"rango.N"` · `"ahnos:5\|20"` · `"fechas:01/01/2015\|31/12/2020"` |
+| `sector_actividad`       | `"cnae\|4941"` · `"icif\|<etiqueta del sector Infonif>"`          |
+| `Provincias`             | `"Aragón\|Teruel"` (ruta completa)                                |
+| `cargo`, `vinculaciones` | id + `"status:0\|1\|2"`                                           |
+
+**«Más de 20 empleados» sí es expresable**: `"empleados:20|99999999"`. El
+`99999999` es literalmente lo que pone el frontend cuando el «hasta» va vacío
+(`FilterNumeroEmpleados.vue:339`).
+
+Esto corrige lo que asumí al leer solo `buscador-data.json`: `FiltroSegmento`
+(CONTRATOS §3) **sí** puede seguir aceptando números libres del usuario. Lo que
+cambia es a qué compila.
 
 ### `industria` — el sector propio de Infonif
 
@@ -203,9 +218,12 @@ Petición: `ejemplo-peticion.json`. Todas las claves van siempre, con array vac�
 si no se filtra. Los valores son los `id` de `buscador-data.json`.
 
 `filtros` es un array de estados acumulativos —primero `{Provincias}`, luego
-`{Provincias, antiguedad}`—. **Hipótesis:** es el embudo, para poder pintar
-cuánto queda tras cada criterio. Encaja con lo que Nia necesita para el desglose,
-pero no está confirmado.
+`{Provincias, antiguedad}`—. **Confirmado** en `utils.js:172` (`beforeOrderFilters`):
+recorre los filtros aplicados en orden, va acumulando en un objeto y empuja una
+instantánea en cada paso. Es el embudo, y es lo que permite pintar cuántas
+empresas quedan tras cada criterio.
+
+Es **obligatorio**: `search.js:286` no llama al API si `filtros` viene vacío.
 
 La respuesta es una lista plana de `{ id, data }` con dos familias de `id`:
 
@@ -235,13 +253,20 @@ campo. Es mejor de lo que asumía CONTRATOS §4.
 { "id": "10000|ultima|1|2024",                        "data": 44 }
 ```
 
-Formato observado: `partida | X | años` y `partida | "ultima" | X | año`, donde
-`partida` es la de `campos-comprables.json`.
+Formato: `partida | tipoCuenta | años` y `partida | "ultima" | tipoCuenta | año`,
+donde `partida` es la de `campos-comprables.json`.
 
-**El segmento `X` no lo sabemos.** Toma valores `0`, `1` y `5`. No son los ids de
-`tipo_cuentas` (1, 2, 100). En el ejemplo, `0` y `1` dan conteos idénticos en
-todas las partidas, lo que sugiere que no es un eje de filtrado sino una variante
-del mismo dato. **Preguntar.**
+**El segmento intermedio es el tipo de cuenta.** Resuelto leyendo el frontend:
+
+| Valor | Significado    | Dónde                                                                                      |
+| ----- | -------------- | ------------------------------------------------------------------------------------------ |
+| `0`   | cualquier tipo | `FieldsSelected.vue:201` — «Como no hay seleccionadas buscamos tipo 0 (Cualquier tipo de)» |
+| `1`   | Individual     | `FilterInformacionFinanciera.vue:396`                                                      |
+| `5`   | Consolidada    | idem                                                                                       |
+
+Ojo: **no** son los ids del filtro `TipoCuentas`, que usa `1` Individual,
+`2` Consolidada y `100` Ambas (`buscador-data.json`). Dos codificaciones
+distintas para el mismo concepto en la misma API.
 
 Los años vienen **sin ordenar** (`"2019,2022,2023,2024,2018,2020,2021"`): la
 cadena es un identificador, no una lista ordenada. Hay que normalizarla antes de
@@ -249,29 +274,158 @@ comparar o agrupar.
 
 ---
 
-## 4. Qué cambia esto respecto a lo escrito
+## 4. Cómo lo consume el frontend actual
 
-Ninguna decisión de `docs/ADR.md` se toca sin hablarlo. Lo que sí queda tocado:
+Analizado sobre `C:\apu\gedesco\frontend-bbdd` (`infonif-buscador` 0.1.1, Vue 2 +
+Vuex + axios). Es la herramienta que se ve en
+`infonif.economia3.com/bases-de-datos/herramienta/#/`.
 
-| Dónde                      | Qué                                                                                                                                                                        |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `datos/geo/provincias.ts`  | La forma canónica pasa a ser la del INE con ruta `Comunidad\|Provincia`. Lo nuestro queda como alias.                                                                      |
-| `datos/elastic/mapping.ts` | Los supuestos declarados hay que revisarlos contra `$.UltimaCuentaAnual.*` y `$.CnaeInfo.*`.                                                                               |
-| `datos/fixtures/skus.json` | Los tramos 0,30/0,15/0,10 quedan en entredicho (§1). No escribir `precios.ts` hasta resolverlo.                                                                            |
-| CONTRATOS §3               | `empleados` y `antiguedadMinAnios` son rangos cerrados, no números.                                                                                                        |
-| CONTRATOS §4               | Puede que no compilemos a DSL de Elasticsearch, sino a esta petición JSON. Hay que averiguar si este buscador es un servicio propio delante de ES o si es ES directamente. |
-| `packages/semantica`       | El corpus CNAE ya lo tenemos: 627 clases con etiquetas y conteos reales.                                                                                                   |
+### Hay un API REST propio delante
 
-## 5. Lo que hay que preguntar a Infonif
+```js
+// src/plugins/axios.js
+axios.defaults.baseURL = "https://bbdd-api.infonif.es/api"; // producción
+axios.defaults.baseURL = "https://bbdd-api2.infonif.es/api"; // infoniftest
+```
 
-1. **El modelo de precio del listado**: ¿los 0,30/0,15/0,10 son tramos sobre la
-   suma de campos, un producto distinto, o están obsoletos?
-2. **El segmento `0|1|5`** de los identificadores de partida.
-3. **`filtros`**: ¿es el embudo acumulativo? ¿Es obligatorio enviarlo?
-4. **¿Este buscador es Elasticsearch directamente o un servicio delante?** De la
-   respuesta depende si el compilador de la Fase 1 emite DSL de ES o emite esta
-   petición.
-5. **Ejercicios disponibles**: `buscador-data.json` topa en 2022, la respuesta
-   trae 2024.
-6. **Autenticación**: ambos endpoints responden sin credenciales. ¿La petición de
-   conteo también, o exige sesión?
+**Esto responde a la pregunta que bloqueaba la Fase 1: no hablamos con
+Elasticsearch, hablamos con `bbdd-api.infonif.es`.** Lo que haya detrás es asunto
+suyo. El compilador de filtros de Nia emite esta petición JSON, no DSL de ES.
+
+Endpoints que usa el buscador:
+
+| Método y ruta                                                        | Para qué                                                  |
+| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `POST /buscador/filtrar?resumen=false`                               | **El conteo.** Devuelve `cantidad` y `campos_disponibles` |
+| `POST /buscador/empresas/filtrar?pag=&size=&sort=`                   | Resultados paginados                                      |
+| `POST /buscador/empresas/excel?nombreArchivo=&a=g`                   | Genera el Excel del listado                               |
+| `POST /buscador/empresas/presupuesto?nombreArchivo=&costo=&total=`   | Genera el presupuesto en Excel                            |
+| `POST /buscador/empresas/email?to=&nombreArchivo=`                   | Envía los resultados por correo                           |
+| `GET /buscador/planBBDD?idusuario=`                                  | Plan de registros del usuario                             |
+| `GET /buscador/cuentas/disponibles/count`, `/cuentas/tipos/count`    | Facetas de cuentas                                        |
+| `GET /buscador/localidades?buscar=`                                  | Autocompletado de localidades                             |
+| `POST /buscador/NIF/validar`, `/codigoPostal/validar` (+ `/archivo`) | Validación de listas y subida de ficheros                 |
+| `POST /buscador/razonSocial/buscar?razon=`, `/cargo/buscar`          | Búsquedas auxiliares                                      |
+| `GET /buscador/auditor/lista`, `/auditor/buscar`                     | Auditores                                                 |
+| `GET /buscador/filtro/id/{id}`                                       | Recupera un filtro guardado                               |
+
+Las dos facetas grandes **no** salen del API: son ficheros estáticos servidos
+desde el propio portal (`buscador-data.json`, `fields.json`). Existe
+`GET /buscador/resumen`, pero está desactivado con un `loadRemote = false`
+(`search.js:159`).
+
+### Autenticación
+
+`Bearer` en el interceptor de axios, con el token sacado de
+`localStorage.dataJson` (`auth.js:43`), que es lo que deja ahí el portal ASP. Hay
+además una `apikey` fija en el código para los filtros guardados
+(`utils.js:1494`).
+
+**Esto valida el diseño del puente de sesión de CONTRATOS §5**: el ASP ya publica
+sesión al frontend por este camino. Nia puede hacer lo mismo, pero acuñando su
+propio token en `/internal/mint` en vez de leer el de ellos.
+
+### La fórmula del precio
+
+Está en `FieldsSelected.vue:135` (`costoActual`) y `:165` (`getCount`):
+
+```
+coste = Σ  precio_campo × N_campo          (sobre los campos seleccionados)
+
+N_campo =
+  RazonSocial            → total de empresas del segmento
+  campo sin `partida`    → campos_disponibles.find(id === nombre).data
+  campo con `partida`:
+      con filtro financiero aplicado →
+          tipo y años = los de la PRIMERA partida filtrada
+          Σ .data de los ids que empiezan por `${nombre}|${tipo}`
+            y cuya lista de años corte con los años pedidos
+      sin filtro financiero →
+          Σ .data de los ids que empiezan por `${nombre}|0`   (0 = cualquier tipo)
+
+total a pagar = coste × 1,21          (IVA, VisualizarResultados.vue:1349)
+```
+
+Es exactamente lo que se ve en la captura: CIF 81 · Razón social 81 ·
+Dirección 81 · Email 81 · **Ventas 79**, con «Empresas: 81». Los 81 registros
+tienen CIF y email —email está marcado obligatorio—, pero solo 79 tienen la
+partida de ventas.
+
+Comprobación con esos números: 3 × 0,02 × 81 + 0,05 × 81 + 0,04 × 79 = **12,07 €**
+sin IVA, 14,60 € con IVA.
+
+### El interruptor «Obligatorio» cambia el conteo, no solo el precio
+
+Es el `requiredFilter` de `fields.json`. Su tooltip:
+«Únicamente se mostrarán los registros que tengan valor en este campo»
+(`FieldsList.vue:108`). Al activarlo, el nombre del campo entra en
+`campos_requeridos` y **el segmento se reduce**.
+
+O sea: activar «Email obligatorio» baja el número de empresas y sube la
+proporción de registros facturables. Nia tiene que explicar ese intercambio, no
+solo aplicarlo.
+
+En el estado del frontend `campos_requeridos` es un objeto `{Email: true}`; se
+aplana a array de nombres justo antes de enviar (`Buscador.vue:505`).
+
+### Dos cosas que NO hay que copiar
+
+1. **El precio se calcula en el cliente y se envía al servidor como parámetro**:
+   `presupuesto?costo=${camposCosto}&total=${empresas}`, y el `monto` del TPV sale
+   del mismo cálculo del navegador (`VisualizarResultados.vue:1349`). En Nia el
+   precio lo calcula el servidor dentro de la herramienta: la regla 1 dice que el
+   cobro no lo decide el cliente.
+
+2. **Hay dos implementaciones distintas de `costoActual`** en la misma pantalla:
+   la de `Buscador.vue:389` no contempla los campos con `partida` —busca
+   `id === "99053"` cuando los ids reales son `"99053|0|…"`— y la de
+   `FieldsSelected.vue:135` sí. La que manda es la segunda, porque es la que
+   despacha `setCostoTotal`. `datos/precios.ts` será fuente única, como manda
+   CLAUDE.md.
+
+### Plan de registros
+
+`planBBDD` trae `numRegistrosMensuales` y `numRegistrosConsumidos`. Con plan, la
+descarga consume saldo y no pasa por el TPV (`descargaPorPaquete`,
+`VisualizarResultados.vue:1845`); sin plan, se paga. La descarga marca
+`TipoDescarga: 2` con plan y `1` sin plan.
+
+Es el mismo modelo de derechos de ADR-008: `derechos.ts` resuelve plan o saldo, y
+la herramienta decide antes de devolver el dato.
+
+---
+
+## 5. Qué cambia esto respecto a lo escrito
+
+Ninguna decisión de `docs/ADR.md` se toca sin hablarlo.
+
+| Dónde                      | Qué                                                                                                                                                                                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CONTRATOS §4               | **Cambia el destino del compilador**: no emite DSL de Elasticsearch, emite la petición de `POST /buscador/filtrar`. `datos/elastic/` pasa a ser `datos/bbdd/`, o convive si seguimos usando ES para otra cosa. |
+| CONTRATOS §3               | `FiltroSegmento` puede seguir con números libres; compila a `empleados:min\|max`, `ahnos:min\|max`, `cnae\|NNNN`.                                                                                              |
+| `datos/precios.ts`         | La fórmula ya se conoce (§4) salvo el conflicto de los tramos (§1).                                                                                                                                            |
+| `datos/geo/provincias.ts`  | Canónico = ruta `Comunidad\|Provincia` con nombres del INE.                                                                                                                                                    |
+| `datos/fixtures/skus.json` | Los tramos 0,30/0,15/0,10 siguen sin encajar. Sigue siendo la pregunta abierta.                                                                                                                                |
+| `packages/semantica`       | Corpus CNAE resuelto: 627 clases con etiquetas y conteos. Además hay que resolver a `icif\|<etiqueta>` para el sector propio.                                                                                  |
+| CONTRATOS §5               | El puente de sesión queda validado: el ASP ya publica sesión por `localStorage`.                                                                                                                               |
+
+## 6. Lo que sigue pendiente de preguntar
+
+Resueltas leyendo el frontend: el segmento `0|1|5`, el papel de `filtros`, y si el
+buscador es Elasticsearch o un servicio (es un servicio).
+
+Quedan:
+
+1. **El modelo de precio del listado** — la única que bloquea. ¿Los 0,30/0,15/0,10
+   de CLAUDE.md son tramos por volumen encima de la suma de campos, un producto
+   distinto, o están obsoletos? La fórmula del frontend no los aplica por ningún
+   lado.
+2. **Mínimo de registros**: puse 50 en `skus.json` por mi cuenta. No aparece en el
+   frontend. ¿Existe?
+3. **Ejercicios disponibles**: `buscador-data.json` topa en 2022, la respuesta de
+   conteo trae 2024. ¿Fichero cacheado o dos fuentes?
+4. **Acceso de Nia al API**: ¿nos dan credenciales propias contra
+   `bbdd-api.infonif.es`, o hay que ir con el token del usuario? De esto depende
+   si `datos/` puede consultar sin sesión.
+5. **Contrato de `POST /buscador/filtrar`**: ¿hay OpenAPI/Swagger? Lo de aquí está
+   deducido del cliente, no de una especificación.
