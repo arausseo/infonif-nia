@@ -317,6 +317,38 @@ Teruel + antigüedad rango.2 + campos_requeridos:[Email] →  81 empresas
 **Exigir email se lleva el 70 % del segmento.** Nia tiene que decirlo, no
 aplicarlo callando: se pagan menos registros, pero también se compran menos.
 
+### Criterios financieros: el formato que sí traga
+
+Los filtros `balance`, `perdidas` y `ratios` llevan una cadena de cinco campos:
+
+```
+años | partida-etiqueta | desde | hasta | tipoCuenta
+
+2024,2023|99053-Ventas|2000000|null|1
+```
+
+Medido contra el API, porque aquí es fácil equivocarse en silencio:
+
+| Qué se manda                  | Qué pasa                                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| `null` en los años            | **HTTP 500.** Son obligatorios, aunque el frontend parezca mandar null                   |
+| `2024`                        | 99.122 empresas con ventas ≥ 2 M                                                         |
+| `2023`                        | 103.596                                                                                  |
+| `2023,2024`                   | **113.619** → varios años significan «al menos uno», no «todos»                          |
+| tipoCuenta `1`                | 99.122 → cuentas individuales                                                            |
+| tipoCuenta `0` o `5`          | 2.423 → **`0` NO es «cualquier tipo» aquí**, aunque sí lo sea en los ids de la respuesta |
+| `2024\|99053\|…` sin etiqueta | mismo resultado: la etiqueta es decorativa                                               |
+| `todos:true` / `todos:false`  | ocupan el sitio del tipo de cuenta; no se pueden combinar con él                         |
+
+Que `0` signifique «cualquiera» al leer la respuesta y «casi nada» al filtrar es
+la trampa más cara del contrato: dejaría fuera el 97 % del segmento sin que nada
+falle ni avise.
+
+Como los años son obligatorios y no se pueden escribir a mano —envejecen—, se
+sacan del resumen en vivo: los dos ejercicios más recientes cuya cobertura llegue
+al 20 % del universo. Hoy, 2024 y 2023. El año en curso no vale: 2026 tiene una
+sola empresa con cuentas.
+
 ### Las dos familias de `id` en `campos_disponibles`
 
 Es una lista plana de `{ id, data }`:

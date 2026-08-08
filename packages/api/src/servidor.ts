@@ -5,8 +5,7 @@ import cors from "@fastify/cors";
 import { config, origenesPermitidos } from "./comun/config.js";
 import { registro } from "./comun/registro.js";
 import { esErrorNia } from "./comun/errores.js";
-import { estadoElastic } from "./datos/elastic/cliente.js";
-import { rutas } from "./datos/elastic/rutas.js";
+import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 
 export function construirServidor() {
@@ -21,10 +20,10 @@ export function construirServidor() {
   }));
 
   app.get("/salud/dependencias", async () => {
-    const [elastic, redis] = await Promise.all([estadoElastic(), estadoRedis()]);
+    const [infonif, redis] = await Promise.all([estadoInfonif(), estadoRedis()]);
     return {
-      ok: elastic.disponible && redis.disponible,
-      elasticsearch: { ...elastic, indice: rutas.indice, rutasDeVersion: rutas.version },
+      ok: infonif.disponible && redis.disponible,
+      infonif: { ...infonif, url: config.INFONIF_API_URL },
       redis,
     };
   });

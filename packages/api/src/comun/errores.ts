@@ -9,7 +9,7 @@
 
 export type CodigoError =
   | "CONFIGURACION"
-  | "ELASTIC"
+  | "INFONIF"
   | "SQL"
   | "VALIDACION"
   | "DERECHOS"
@@ -44,14 +44,17 @@ export class ErrorConfiguracion extends ErrorNia {
   }
 }
 
-export class ErrorElastic extends ErrorNia {
+export class ErrorInfonif extends ErrorNia {
   readonly estado: number;
+  readonly ruta: string;
 
-  constructor(estado: number, cuerpo: string) {
-    super("ELASTIC", `Elasticsearch respondió ${estado}: ${cuerpo}`, {
-      mensajeParaElModelo: "La búsqueda de empresas no está disponible ahora mismo.",
+  constructor(estado: number, ruta: string, detalle: string) {
+    super("INFONIF", `El API de Infonif respondió ${estado} en ${ruta}: ${detalle}`, {
+      // El modelo no ve rutas ni códigos: no son suyos y no puede hacer nada con ellos.
+      mensajeParaElModelo: "La base de datos de empresas no responde ahora mismo.",
     });
     this.estado = estado;
+    this.ruta = ruta;
   }
 }
 

@@ -23,14 +23,12 @@ const EsquemaEntorno = z.object({
   INFONIF_API_URL: z.string().url().default("https://bbdd-api.infonif.es/api"),
   INFONIF_API_KEY: z.string().optional(),
   INFONIF_TIEMPO_LIMITE_MS: z.coerce.number().int().positive().default(45_000),
-
-  // Elasticsearch local, solo para desarrollar contra los fixtures.
-  // ES_VERSION decide la forma de las rutas (ver datos/elastic/rutas.ts).
-  ES_URL: z.string().url().default("http://localhost:9200"),
-  ES_INDICE: z.string().min(1).default("empresas"),
-  ES_VERSION: z.enum(["6", "7"]).default("7"),
+  /** Segundos que dura en Redis la caché del resumen de facetas. */
+  INFONIF_RESUMEN_TTL_SEGUNDOS: z.coerce.number().int().positive().default(21_600),
 
   // SQL Server. Solo lectura, siempre.
+  // Fuera del camino crítico del MVP: los derechos se resuelven por su API
+  // (GET /buscador/planBBDD). Se deja configurado para cuando haga falta.
   MSSQL_HOST: z.string().default("localhost"),
   MSSQL_PUERTO: z.coerce.number().int().positive().default(1433),
   MSSQL_USER: z.string().default("sa"),

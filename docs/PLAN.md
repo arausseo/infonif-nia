@@ -35,17 +35,30 @@ precio de los listados y los precios de los packs, marcados como supuestos en
 **Objetivo:** `datos/` funciona y es probado, sin saber que existe un modelo de
 lenguaje.
 
-- [ ] Envoltorio `fetch` sobre Elasticsearch, con `rutas.ts` que abstrae 6.x/7.x
-- [ ] Compilador `FiltroSegmento` → consulta ES, **con tests exhaustivos**
-- [ ] `contarSegmento()` usando `_count` (exacto) + desglose `terms` por provincia
-- [ ] `buscarEmpresas()` con proyección de campos según nivel de acceso
-- [ ] Conexión a SQL Server con `mssql`, TLS configurable
-- [ ] `derechos.ts`: resuelve plan, créditos, packs y cuota mensual de un usuario
-- [ ] `precios.ts`: fuente única de cálculo de precios (informes y listados)
+> **Reescrita el 08/08/2026.** La fase estaba planteada sobre Elasticsearch, y
+> resultó que Infonif tiene un API REST propio delante (`docs/API-INFONIF.md`).
+> No emitimos DSL de ES: emitimos su petición de filtro. Se retiró el
+> Elasticsearch local y las 200 empresas sintéticas de la Fase 0, porque un
+> fixture con otra forma habría validado un contrato que no existe.
+
+- [x] Cliente `fetch` del API de Infonif, con apikey, tiempo límite y errores propios
+- [x] Compilador `FiltroSegmento` → `POST /buscador/filtrar`, **con tests exhaustivos**
+- [x] `contarSegmento()` con el conteo exacto y el desglose por criterio
+- [x] `buscarEmpresas()` sobre el autocompletado, deduplicando por NIF
+- [x] `resumen.ts`: vocabulario de filtros en vivo, cacheado en Redis
+- [x] `derechos.ts`: resuelve plan y saldo por su API, no por SQL Server
+- [x] `precios.ts`: fuente única del cálculo, por campo y por registro
 
 **Aceptación:** tests que demuestran que un filtro complejo produce el conteo
-correcto contra los fixtures, y que `derechos.ts` distingue los tres perfiles
-(anónimo, con bono, Premium).
+correcto, y que `derechos.ts` distingue los tres perfiles.
+
+**Cumplida** (08/08/2026): 86 tests sin red, contra respuestas grabadas del API
+real. `pnpm verificar` ejercita la cadena completa contra Infonif en vivo: el
+segmento del flujo C del demo da **135 empresas** con su embudo
+(2.141 → 250 → 145 → 135) y **32,43 € IVA incluido** por seis campos.
+
+Lo que queda fuera y hay que recordar: SQL Server sigue configurado pero sin usar,
+y las cuentas anuales por empresa (flujo A) todavía no tienen función propia.
 
 ---
 

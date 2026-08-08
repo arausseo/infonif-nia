@@ -1,32 +1,61 @@
 import { describe, expect, it } from "vitest";
-import { PROVINCIAS_ES, resolverProvincia } from "./provincias.js";
+import { claveProvincia } from "./provincias.js";
 
-describe("provincias", () => {
-  it("son 52: las 50 provincias más Ceuta y Melilla", () => {
-    expect(PROVINCIAS_ES).toHaveLength(52);
-    expect(new Set(PROVINCIAS_ES).size).toBe(52);
+/**
+ * `claveProvincia` solo tiene que garantizar una cosa: que la grafía del usuario
+ * y la del INE produzcan la misma clave. Quién casa con qué se prueba contra el
+ * catálogo real en `infonif/resumen.test.ts`.
+ */
+
+describe("claveProvincia", () => {
+  it("iguala la grafía castellana y la del INE", () => {
+    const pares: [string, string][] = [
+      ["Castellón", "Castelló"],
+      ["Lérida", "Lleida"],
+      ["Gerona", "Girona"],
+      ["Orense", "Ourense"],
+      ["Vizcaya", "Bizkaia"],
+      ["Guipúzcoa", "Gipuzkoa"],
+      ["Álava", "Araba/Álava"],
+      ["La Coruña", "Coruña, A"],
+      ["Las Palmas", "Palmas, Las"],
+      ["La Rioja", "Rioja, La"],
+      ["Baleares", "Balears, Illes"],
+      ["Alicante", "Alicante/Alacant"],
+      ["Valencia", "Valencia/València"],
+    ];
+    for (const [castellano, ine] of pares) {
+      expect(claveProvincia(castellano), `${castellano} vs ${ine}`).toBe(
+        claveProvincia(ine),
+      );
+    }
   });
 
-  it("resuelve la grafía canónica", () => {
-    expect(resolverProvincia("Valencia")).toBe("Valencia");
-    expect(resolverProvincia("Castellón")).toBe("Castellón");
+  it("iguala las dos grafías de Tenerife de sus propios datos", () => {
+    expect(claveProvincia("Sta. Cruz De Tenerife")).toBe(
+      claveProvincia("Santa Cruz De Tenerife"),
+    );
   });
 
-  it("tolera minúsculas, espacios y falta de acentos", () => {
-    expect(resolverProvincia("  castellon ")).toBe("Castellón");
-    expect(resolverProvincia("almeria")).toBe("Almería");
-    expect(resolverProvincia("ALAVA")).toBe("Álava");
+  it("es indiferente a mayúsculas, acentos y espacios", () => {
+    expect(claveProvincia("  TERUEL ")).toBe(claveProvincia("Teruel"));
+    expect(claveProvincia("almeria")).toBe(claveProvincia("Almería"));
   });
 
-  it("acepta grafías cooficiales", () => {
-    expect(resolverProvincia("Lleida")).toBe("Lérida");
-    expect(resolverProvincia("Bizkaia")).toBe("Vizcaya");
-    expect(resolverProvincia("A Coruña")).toBe("La Coruña");
-    expect(resolverProvincia("Ourense")).toBe("Orense");
+  it("admite el nombre de la capital cuando no hay ambigüedad", () => {
+    expect(claveProvincia("Bilbao")).toBe(claveProvincia("Bizkaia"));
+    expect(claveProvincia("Pamplona")).toBe(claveProvincia("Navarra"));
+    expect(claveProvincia("Santander")).toBe(claveProvincia("Cantabria"));
   });
 
-  it("devuelve undefined si no identifica nada", () => {
-    expect(resolverProvincia("Lisboa")).toBeUndefined();
-    expect(resolverProvincia("")).toBeUndefined();
+  it("no confunde provincias distintas", () => {
+    expect(claveProvincia("Cáceres")).not.toBe(claveProvincia("Cádiz"));
+    expect(claveProvincia("León")).not.toBe(claveProvincia("Lleida"));
+    expect(claveProvincia("Valencia")).not.toBe(claveProvincia("Valladolid"));
+    expect(claveProvincia("Las Palmas")).not.toBe(claveProvincia("Palencia"));
+  });
+
+  it("deja pasar sin tocar lo que no reconoce", () => {
+    expect(claveProvincia("Lisboa")).toBe("lisboa");
   });
 });

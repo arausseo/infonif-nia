@@ -9,8 +9,7 @@
     "start": "node dist/servidor.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "fixtures": "tsx scripts/generar-fixtures.ts",
-    "sembrar": "tsx scripts/sembrar.ts"
+    "verificar": "tsx scripts/comprobar-en-vivo.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
