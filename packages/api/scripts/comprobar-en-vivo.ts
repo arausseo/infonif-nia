@@ -17,6 +17,7 @@ import {
 } from "../src/datos/infonif/resumen.js";
 import { contarSegmento } from "../src/datos/infonif/segmentos.js";
 import { cotizarListado } from "../src/datos/precios.js";
+import { recomendarProducto, resolverActividad } from "../src/datos/semantica.js";
 import { cerrarRedis } from "../src/datos/redis/cliente.js";
 
 const euros = (n: number) =>
@@ -69,9 +70,28 @@ async function principal(): Promise<void> {
     `  ${empresas.length} empresas tras deduplicar${posiblesMas ? " (su API topa en 25)" : ""}`,
   );
 
-  console.log("\n=== 3. Segmento del flujo C del demo ==============================");
+  console.log("\n=== 3. Capa semántica =============================================");
+  const resolucion = await cronometrar('resolverActividad("logística")', () =>
+    resolverActividad("logística", 3),
+  );
+  for (const actividad of resolucion.actividades) {
+    console.log(
+      `    ${actividad.cnae}  ${actividad.descripcion.slice(0, 46).padEnd(46)} ` +
+        `${miles(actividad.empresas).padStart(8)} empresas  (${actividad.via})`,
+    );
+  }
+  const recomendado = await cronometrar("recomendarProducto (flujo B del demo)", () =>
+    recomendarProducto(
+      "un proveedor nuevo me pide crédito a 90 días por 40.000 euros",
+      1,
+    ),
+  );
+  console.log(`    ${recomendado[0]?.sku} — ${recomendado[0]?.porQue.slice(0, 70)}…`);
+
+  console.log("\n=== 4. Segmento del flujo C del demo ==============================");
+  // Los CNAE NO van escritos a mano: salen de la capa semántica de arriba.
   const filtro: FiltroSegmento = {
-    cnae: ["4941", "5210", "5229"],
+    cnae: resolucion.actividades.map((a) => a.cnae),
     provincias: ["Valencia", "Castellón"],
     empleados: { min: 20 },
     ventas: { min: 2_000_000 },
@@ -105,7 +125,7 @@ async function principal(): Promise<void> {
     );
   }
 
-  console.log("\n=== 4. Cotización =================================================");
+  console.log("\n=== 5. Cotización =================================================");
   const presupuesto = cotizarListado(
     ["CIF", "RazonSocial", "Direccion", "Email", "Telefono", "99053"],
     segmento.camposDisponibles,

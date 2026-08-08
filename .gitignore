@@ -10,6 +10,6 @@ coverage/
 .turbo/
 *.tsbuildinfo
 
-# artefacto binario de embeddings (se regenera con `pnpm embeddings`)
+# ADR-004: el artefacto de embeddings SÍ se versiona. Son ~1 MB y evita que un
+# despliegue tenga que regenerarlo. Se rehace con `pnpm embeddings`.
 packages/semantica/dist/
-packages/semantica/artefactos/*.bin

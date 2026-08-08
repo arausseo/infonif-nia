@@ -6,3 +6,8 @@ packages:
 # plataforma en su sitio. Lo usan Vite, Vitest, tsx y tsup.
 allowBuilds:
   esbuild: true
+  # El motor de embeddings local: necesita bajar su binario nativo.
+  onnxruntime-node: true
+  protobufjs: true
+  # No lo usamos: solo entra por el soporte de imágenes de transformers.
+  sharp: false

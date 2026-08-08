@@ -64,14 +64,35 @@ y las cuentas anuales por empresa (flujo A) todavía no tienen función propia.
 
 ## Fase 2 — Capa semántica
 
-- [ ] `packages/semantica`: corpus CNAE-2009 (~630 clases a 4 dígitos) en JSON
-- [ ] ~50 casos comerciales curados (caso de uso → SKU + justificación)
-- [ ] Script de build que genera embeddings y los serializa a binario
-- [ ] Carga en memoria al arrancar + similitud coseno por fuerza bruta
-- [ ] Caché Redis por consulta normalizada
+- [x] `packages/semantica`: corpus CNAE de 627 clases a 4 dígitos, extraído de su
+      propio resumen en vivo en lugar de un CNAE-2009 externo
+- [x] 50 casos comerciales curados (caso de uso → SKU + justificación)
+- [x] Script de build que genera embeddings y los serializa a binario
+- [x] Carga en memoria + similitud coseno por fuerza bruta
+- [x] Caché Redis por consulta normalizada
+- [x] 340 términos comerciales curados, capa léxica delante de los vectores
 
 **Aceptación:** `resolverActividad("logística")` devuelve 4941, 5210 y 5229 en
 menos de 5 ms, y "empresas de mudanzas" también acierta.
+
+**Cumplida** (08/08/2026): 38 tests, con el modelo real cargado y no con uno de
+mentira. «logística» resuelve en **menos de 1 ms** porque lo cubren los términos
+curados sin tocar el modelo; «empresas de mudanzas» da 4942; y «fabricantes de
+envases de cartón», que nadie curó, llega a 1721 por los vectores.
+
+Dos decisiones que no estaban en el ADR y se tomaron aquí:
+
+- **El modelo corre en la máquina** (`multilingual-e5-small` por ONNX, 384
+  dimensiones). Sin clave de terceros y sin que la consulta del usuario salga del
+  servidor, lo que ahorra una conversación de RGPD con Infonif.
+- **Capa léxica delante de los vectores.** Lo curado acierta en microsegundos y
+  además es auditable: se puede decir _por qué_ salió ese CNAE. Los embeddings
+  cubren el resto del árbol. No sustituye a ADR-004, le pone un índice barato
+  delante.
+
+Ojo con una trampa medida: los e5 comprimen la escala —un acierto claro da ~0,88
+y algo totalmente ajeno ~0,845—, así que **el umbral es relativo al primero,
+nunca absoluto**.
 
 ---
 

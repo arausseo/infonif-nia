@@ -58,4 +58,4 @@ el `widget.js` único que el ASP embebe.
 
 ## Estado
 
-Fases 0 (andamiaje) y 1 (capa de datos) completas. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.
+Fases 0 (andamiaje), 1 (capa de datos) y 2 (capa semántica) completas. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.

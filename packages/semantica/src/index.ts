@@ -1,40 +1,39 @@
 /**
  * Capa semántica: texto libre del usuario → códigos CNAE (ADR-004).
  *
- * FASE 2 (PLAN.md). Aquí solo están los tipos, para que `agente/` y `datos/`
- * puedan escribirse contra una firma estable. La implementación —corpus de
- * ~1.500 documentos, embeddings precalculados en build, similitud coseno por
- * fuerza bruta sobre un artefacto binario cargado en memoria— llega en su fase.
+ * Dos capas: términos comerciales curados a mano, y embeddings generados en
+ * tiempo de compilación y cargados en memoria. La primera resuelve lo habitual
+ * en microsegundos y se puede explicar; la segunda cubre el resto del árbol.
  *
- * Lo que NO se hará: pedirle los códigos CNAE al modelo. Se los inventa con
- * aplomo, y un CNAE inventado es un segmento mal contado y una factura mal
- * emitida.
+ * Lo que NO se hace: pedirle los códigos CNAE al modelo de lenguaje. Se los
+ * inventa con aplomo, y un CNAE inventado es un segmento mal contado y una
+ * factura mal emitida.
  */
-
-export interface DocumentoCorpus {
-  /** `cnae:4941`, `caso:proveedor-credito-90-dias`, `faq:que-es-el-rai` */
-  id: string;
-  tipo: "cnae" | "caso-comercial" | "faq";
-  texto: string;
-  /** Códigos CNAE a los que apunta el documento. */
-  cnae?: string[];
-  /** SKU sugerido, en documentos de tipo caso-comercial. */
-  sku?: string;
-}
-
-export interface Coincidencia {
-  documento: DocumentoCorpus;
-  /** Similitud coseno en [0, 1]. */
-  puntuacion: number;
-}
-
-export interface ActividadResuelta {
-  cnae: string;
-  descripcion: string;
-  puntuacion: number;
-}
-
-export interface MotorSemantico {
-  resolverActividad(consulta: string, limite?: number): Promise<ActividadResuelta[]>;
-  buscar(consulta: string, limite?: number): Promise<Coincidencia[]>;
-}
+export {
+  casos,
+  corpus,
+  clasePorCodigo,
+  textoDeCaso,
+  textoDeClase,
+  type CasoComercial,
+  type ClaseCnae,
+  type Corpus,
+} from "./corpus.js";
+export { buscarLexico, normalizar, type CoincidenciaLexica } from "./lexico.js";
+export { DIMENSIONES, MODELO } from "./modelo.js";
+export {
+  recomendarProducto,
+  resolverActividad,
+  usarVectorizador,
+  vectorizadorLocal,
+  type ActividadResuelta,
+  type ProductoRecomendado,
+  type Resolucion,
+  type Vectorizador,
+} from "./motor.js";
+export {
+  hayArtefacto,
+  masCercanos,
+  olvidarArtefacto,
+  ArtefactoAusente,
+} from "./vectores.js";

@@ -1,0 +1,320 @@
+{
+  "_que_es": "Casos de uso reales de un cliente de Infonif, cada uno con el producto que le corresponde y por qué. Es lo que alimenta `recomendar_producto`.",
+  "_regla_5": "Ningún caso puede llevar a que el agente opine sobre el riesgo o el crédito de una empresa. Esa recomendación la produce el Informe de Riesgo, y además es una decisión automatizada del artículo 22 del RGPD. Los casos de crédito existen precisamente para redirigir a ese producto, no para responderlos.",
+  "_skus": "RAI · INFORME_COMERCIAL · INFORME_RIESGO · CUENTAS_ANUALES · LISTADO_SEGMENTADO · PLAN_1000 · PLAN_5000 · PLAN_10000",
+
+  "casos": [
+    {
+      "id": "credito-proveedor-nuevo",
+      "situacion": "Un proveedor nuevo me pide crédito a 90 días y no sé si dárselo",
+      "sku": "INFORME_RIESGO",
+      "porQue": "El Informe de Riesgo es el producto que incluye scoring y límite de crédito recomendado. Nia no puede valorar el riesgo por su cuenta.",
+      "alternativa": "RAI",
+      "porQueAlternativa": "Si solo se quiere una señal rápida y barata de impagos registrados, la consulta RAI cuesta 6 € y responde al momento."
+    },
+    {
+      "id": "cliente-pide-aplazamiento",
+      "situacion": "Un cliente me pide aplazar el pago de una factura grande",
+      "sku": "INFORME_RIESGO",
+      "porQue": "Antes de conceder aplazamiento conviene el informe con scoring y alertas.",
+      "alternativa": "RAI"
+    },
+    {
+      "id": "impagados-rapido",
+      "situacion": "Solo quiero saber si esta empresa tiene impagados",
+      "sku": "RAI",
+      "porQue": "El RAI dice si figura en el Registro de Aceptaciones Impagadas. Es lo más barato y directo para esa pregunta concreta."
+    },
+    {
+      "id": "vigilar-cartera-clientes",
+      "situacion": "Quiero revisar la salud de mi cartera de clientes",
+      "sku": "PLAN_1000",
+      "porQue": "Revisar muchas empresas sale mejor con un plan de registros que comprando informes sueltos.",
+      "alternativa": "INFORME_RIESGO"
+    },
+
+    {
+      "id": "conocer-empresa-antes-de-reunion",
+      "situacion": "Tengo una reunión con una empresa y quiero saber quién es",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "Trae identificación, actividad, administradores, vinculaciones y evolución de magnitudes. Es la foto general."
+    },
+    {
+      "id": "quien-manda-en-la-empresa",
+      "situacion": "Necesito saber quién administra o quién firma en una sociedad",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "Los administradores y sus cargos vienen en el Informe Comercial."
+    },
+    {
+      "id": "grupo-empresarial",
+      "situacion": "Quiero ver de qué grupo forma parte una empresa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "Las vinculaciones societarias están en el Informe Comercial."
+    },
+    {
+      "id": "competencia-directa",
+      "situacion": "Quiero comparar mi empresa con la competencia",
+      "sku": "CUENTAS_ANUALES",
+      "porQue": "Para comparar cifras hacen falta las cuentas depositadas de cada una, del mismo ejercicio.",
+      "alternativa": "INFORME_COMERCIAL"
+    },
+
+    {
+      "id": "cuentas-de-un-ejercicio",
+      "situacion": "Necesito las cuentas anuales de una empresa de un año concreto",
+      "sku": "CUENTAS_ANUALES",
+      "porQue": "Son las cuentas tal cual se depositaron en el Registro Mercantil, del ejercicio que se pida."
+    },
+    {
+      "id": "balance-y-perdidas",
+      "situacion": "Quiero el balance y la cuenta de pérdidas y ganancias",
+      "sku": "CUENTAS_ANUALES",
+      "porQue": "El detalle contable completo está en las Cuentas Anuales, no en el informe resumido."
+    },
+    {
+      "id": "evolucion-facturacion",
+      "situacion": "Quiero ver cómo ha evolucionado la facturación de una empresa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "El Informe Comercial trae la evolución de magnitudes de los últimos ejercicios depositados.",
+      "alternativa": "CUENTAS_ANUALES"
+    },
+    {
+      "id": "auditor-de-una-empresa",
+      "situacion": "Quiero saber quién audita a una empresa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "El dato de auditor acompaña a las cuentas y aparece en el informe."
+    },
+
+    {
+      "id": "buscar-clientes-potenciales",
+      "situacion": "Quiero una lista de empresas a las que vender",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Un listado segmentado devuelve las empresas que cumplen los criterios, con los campos que se elijan."
+    },
+    {
+      "id": "campana-email",
+      "situacion": "Necesito correos de empresas para una campaña",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El campo Email se compra dentro del listado. Exigirlo reduce el segmento a las que lo tienen, y conviene decirlo antes."
+    },
+    {
+      "id": "telemarketing",
+      "situacion": "Quiero teléfonos de empresas de un sector",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El teléfono es un campo más del listado. No todas las empresas lo tienen."
+    },
+    {
+      "id": "prospeccion-por-zona",
+      "situacion": "Busco empresas de mi provincia para prospectar",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "La ubicación es uno de los filtros del segmento, hasta nivel de localidad."
+    },
+    {
+      "id": "empresas-por-tamano",
+      "situacion": "Quiero empresas de cierto tamaño o facturación",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Se filtra por empleados y por partidas financieras. Ojo: solo el 9,7 % de las empresas tiene dato de empleados."
+    },
+    {
+      "id": "empresas-recien-creadas",
+      "situacion": "Quiero empresas de reciente constitución",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "La antigüedad es un filtro del segmento, por rango o por fechas."
+    },
+    {
+      "id": "estudio-de-mercado",
+      "situacion": "Necesito dimensionar un mercado antes de entrar",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El conteo del segmento es gratis y exacto: dice cuántas empresas hay antes de comprar nada."
+    },
+    {
+      "id": "buscar-proveedores",
+      "situacion": "Busco proveedores de un producto o servicio",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Se segmenta por actividad CNAE y ubicación."
+    },
+    {
+      "id": "franquicias-expansion",
+      "situacion": "Quiero locales o empresas donde expandir mi red",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Se acota por actividad, tamaño y zona."
+    },
+
+    {
+      "id": "muchas-descargas",
+      "situacion": "Voy a descargar listados a menudo, no solo una vez",
+      "sku": "PLAN_5000",
+      "porQue": "Con plan se compran registros por adelantado y cada descarga consume uno por empresa, con todos los campos incluidos. Sale a cuenta por volumen o por uso repetido."
+    },
+    {
+      "id": "listado-grande",
+      "situacion": "Mi segmento tiene varios miles de empresas",
+      "sku": "PLAN_10000",
+      "porQue": "A partir de cierto volumen, el plan sale más barato que pagar campo a campo. El precio por registro baja de 0,30 € a 0,10 €."
+    },
+    {
+      "id": "listado-pequeno",
+      "situacion": "Solo necesito un listado corto, una vez",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Para pocas empresas, pagar los campos sueltos sale bastante más barato que el plan más pequeño, que son 300 €."
+    },
+    {
+      "id": "se-me-acabo-el-saldo",
+      "situacion": "Se me han agotado los registros del plan",
+      "sku": "PLAN_1000",
+      "porQue": "Los planes no caducan, así que recargar no pierde lo que quede sin usar."
+    },
+
+    {
+      "id": "verificar-que-existe",
+      "situacion": "Quiero comprobar que una empresa existe y está activa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "La identificación y la situación mercantil vienen en el informe. La búsqueda por nombre es gratis y ya dice si está en la base."
+    },
+    {
+      "id": "nif-de-una-empresa",
+      "situacion": "Necesito el NIF de una empresa por su nombre",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Para una sola empresa, la búsqueda por nombre ya lo muestra. Para muchas, el CIF es un campo del listado."
+    },
+    {
+      "id": "domicilio-social",
+      "situacion": "Necesito la dirección fiscal de varias empresas",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "La dirección es un campo del listado, a 0,02 € por registro."
+    },
+    {
+      "id": "empresas-auditadas",
+      "situacion": "Quiero empresas que estén auditadas o auditadas por alguien concreto",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El auditor es uno de los filtros del segmento."
+    },
+    {
+      "id": "cargos-y-directivos",
+      "situacion": "Quiero llegar al director o al responsable de compras",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El campo Cargo incluye el cargo prioritario de la empresa. Es el campo más caro del listado, 0,08 € por registro, y no lo tienen todas."
+    },
+    {
+      "id": "morosidad-cartera",
+      "situacion": "Quiero saber si alguno de mis clientes tiene impagos",
+      "sku": "RAI",
+      "porQue": "El RAI responde eso empresa por empresa. Para una cartera entera conviene un plan."
+    },
+    {
+      "id": "due-diligence",
+      "situacion": "Estoy estudiando comprar una empresa",
+      "sku": "CUENTAS_ANUALES",
+      "porQue": "Hacen falta las cuentas depositadas de varios ejercicios.",
+      "alternativa": "INFORME_RIESGO"
+    },
+    {
+      "id": "concurso-de-acreedores",
+      "situacion": "Quiero saber si una empresa está en concurso",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "La situación mercantil viene en el informe. El estado también es un filtro del segmento."
+    },
+    {
+      "id": "seleccion-de-proveedor",
+      "situacion": "Tengo que elegir entre varios proveedores y quiero comparar",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "Un informe por cada uno permite comparar identificación y magnitudes. Nia no elige por el usuario."
+    },
+    {
+      "id": "solvencia-antes-de-contratar",
+      "situacion": "Voy a contratar con una empresa y quiero ver si es solvente",
+      "sku": "INFORME_RIESGO",
+      "porQue": "La valoración de solvencia es exactamente lo que produce el Informe de Riesgo. Nia no la emite."
+    },
+    {
+      "id": "limite-de-credito",
+      "situacion": "Cuánto crédito le puedo dar a esta empresa",
+      "sku": "INFORME_RIESGO",
+      "porQue": "El límite de crédito recomendado es contenido del Informe de Riesgo. Es una decisión automatizada y Nia no la produce."
+    },
+    {
+      "id": "seguimiento-de-empresa",
+      "situacion": "Quiero enterarme si cambia algo en una empresa",
+      "sku": "INFORME_RIESGO",
+      "porQue": "Las alertas forman parte del Informe de Riesgo."
+    },
+    {
+      "id": "empresas-nuevas-del-mes",
+      "situacion": "Quiero las empresas constituidas este año en mi zona",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Se filtra por antigüedad «reciente constitución» y por ubicación."
+    },
+    {
+      "id": "exportadoras",
+      "situacion": "Busco empresas de un sector con cierto volumen para exportar",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Se combina actividad, tamaño y ubicación en un mismo segmento."
+    },
+    {
+      "id": "sector-completo",
+      "situacion": "Quiero todas las empresas de un sector en España",
+      "sku": "PLAN_10000",
+      "porQue": "Un sector entero suele pasar de varios miles de empresas, y ahí el plan es más barato por registro."
+    },
+    {
+      "id": "cuantas-empresas-hay",
+      "situacion": "Cuántas empresas hay de tal actividad en tal provincia",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El conteo no cuesta nada. Solo se paga si se quiere el detalle."
+    },
+    {
+      "id": "actualizar-base-de-datos",
+      "situacion": "Quiero actualizar los datos de contacto de mi CRM",
+      "sku": "PLAN_5000",
+      "porQue": "Actualizar una base entera es uso repetido y de volumen, que es donde el plan compensa."
+    },
+    {
+      "id": "empresas-con-web",
+      "situacion": "Quiero empresas que tengan página web",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "La web es un campo del listado y se puede exigir que exista, lo que reduce el segmento."
+    },
+    {
+      "id": "rentabilidad-del-sector",
+      "situacion": "Quiero ver ratios de rentabilidad de un sector",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "ROA, ROE, ROS y otros ratios son campos comprables del listado."
+    },
+    {
+      "id": "empresas-en-perdidas",
+      "situacion": "Busco empresas con pérdidas o en dificultades",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El resultado del ejercicio es un filtro financiero del segmento."
+    },
+    {
+      "id": "quien-es-mi-competencia",
+      "situacion": "Quiero saber quién más hace lo mismo que yo",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Mismo CNAE y misma zona: eso es un segmento."
+    },
+    {
+      "id": "informe-para-el-banco",
+      "situacion": "El banco me pide información de una empresa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "El informe reúne identificación, actividad y magnitudes en un documento."
+    },
+    {
+      "id": "empleados-de-una-empresa",
+      "situacion": "Cuántos empleados tiene una empresa",
+      "sku": "INFORME_COMERCIAL",
+      "porQue": "El número de empleados viene de la última cuenta anual. Solo lo tiene una de cada diez empresas."
+    },
+    {
+      "id": "empresas-familiares",
+      "situacion": "Busco empresas de cierta antigüedad y tamaño medio",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "Antigüedad y empleados son dos filtros del segmento."
+    },
+    {
+      "id": "presupuesto-antes-de-comprar",
+      "situacion": "Quiero saber cuánto me costaría el listado antes de decidir",
+      "sku": "LISTADO_SEGMENTADO",
+      "porQue": "El precio se calcula exacto sobre el segmento antes de pagar: se sabe cuántos registros traen cada campo."
+    }
+  ]
+}
