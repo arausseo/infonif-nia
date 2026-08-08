@@ -1,58 +1,187 @@
-import { useState } from "react";
-import type { ConfiguracionEmbebida } from "./tipos";
-
-/** La N de Nia: tres barras ascendentes que leídas de otro modo son crecimiento. */
-function IconoNia() {
-  return (
-    <svg className="nia-icono" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
-      <rect x="1" y="10" width="4" height="7" rx="1" fill="currentColor" opacity="0.55" />
-      <rect x="7" y="6" width="4" height="11" rx="1" fill="currentColor" opacity="0.8" />
-      <rect x="13" y="1" width="4" height="16" rx="1" fill="currentColor" />
-    </svg>
-  );
-}
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Lanzador, type EstadoIcono } from "./componentes/Lanzador.js";
+import { LineaDeTiempo } from "./componentes/LineaDeTiempo.js";
+import { Markdown } from "./componentes/Markdown.js";
+import { Sugerencias } from "./componentes/Sugerencias.js";
+import { Tarjetas } from "./componentes/tarjetas/index.js";
+import { useAutoscroll } from "./ganchos/useAutoscroll.js";
+import { useConversacion } from "./ganchos/useConversacion.js";
+import { useThrottle } from "./ganchos/useThrottle.js";
+import { configuracionActual } from "./montar.js";
+import type { Turno } from "./tipos.js";
 
 /**
- * Carcasa mínima de la Fase 0: demuestra que el montaje en Shadow DOM aísla los
- * estilos en ambos sentidos. La conversación, la línea de tiempo de pasos y el
- * registro de tarjetas son Fase 4 (PLAN.md).
+ * La carcasa: lanzador + cajón.
+ *
+ * Todo esto vive dentro de un Shadow DOM (ADR-006), así que ni hereda el CSS del
+ * portal ni se lo impone.
  */
-export function Widget({ configuracion }: { configuracion: ConfiguracionEmbebida }) {
+export function Widget() {
+  const configuracion = configuracionActual();
   const [abierto, setAbierto] = useState(false);
-  const contexto = configuracion.contexto;
+  const [pantallaCompleta, setPantallaCompleta] = useState(false);
+  const [borrador, setBorrador] = useState("");
+  const entrada = useRef<HTMLTextAreaElement | null>(null);
+
+  const { turnos, enviar, enviando, cancelar, reiniciar } =
+    useConversacion(configuracion);
+  const ultimo = turnos[turnos.length - 1];
+
+  const { referencia, alDesplazar, hayNuevo, irAlFondo } = useAutoscroll<HTMLDivElement>(
+    ultimo?.texto.length ?? 0 + (ultimo?.pasos.length ?? 0),
+  );
+
+  const estadoIcono: EstadoIcono = useMemo(() => {
+    if (!enviando) return turnos.length === 0 ? "sugerencia" : "reposo";
+    return ultimo && ultimo.texto.length > 0 ? "respondiendo" : "analizando";
+  }, [enviando, turnos.length, ultimo]);
+
+  useEffect(() => {
+    if (abierto) entrada.current?.focus();
+  }, [abierto]);
+
+  // Escape cierra el cajón, que es lo que espera cualquiera.
+  useEffect(() => {
+    if (!abierto) return;
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setAbierto(false);
+    };
+    document.addEventListener("keydown", alPulsar);
+    return () => document.removeEventListener("keydown", alPulsar);
+  }, [abierto]);
+
+  const mandar = (texto: string) => {
+    setBorrador("");
+    void enviar(texto);
+  };
 
   return (
     <>
       {abierto && (
-        <section className="nia-panel" aria-label="Nia, asistente de Infonif">
-          <h2>Nia</h2>
-          <p>
-            Andamiaje montado en Shadow DOM. El CSS del portal no entra y el de Nia no
-            sale.
-          </p>
-          <p>
-            Contexto de página:{" "}
-            <code>
-              {contexto
-                ? `${contexto.tipo}${contexto.nif ? ` · ${contexto.nif}` : ""}`
-                : "ninguno"}
-            </code>
-          </p>
-          <p>
-            Sesión: <code>{configuracion.token ? "token recibido" : "anónima"}</code>
-          </p>
+        <section
+          className={`nia-cajon ${pantallaCompleta ? "nia-cajon--completo" : ""}`}
+          aria-label="Nia, asistente de Infonif"
+        >
+          <header className="nia-cajon__cabecera">
+            <span className="nia-cajon__titulo">
+              Nia <span className="nia-insignia">BETA</span>
+            </span>
+            <div className="nia-cajon__acciones">
+              {turnos.length > 0 && (
+                <button
+                  type="button"
+                  className="nia-boton-icono"
+                  onClick={reiniciar}
+                  title="Empezar de nuevo"
+                >
+                  ⟲
+                </button>
+              )}
+              <button
+                type="button"
+                className="nia-boton-icono"
+                onClick={() => setPantallaCompleta((antes) => !antes)}
+                title={pantallaCompleta ? "Reducir" : "Pantalla completa"}
+              >
+                {pantallaCompleta ? "⤡" : "⤢"}
+              </button>
+              <button
+                type="button"
+                className="nia-boton-icono"
+                onClick={() => setAbierto(false)}
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+          </header>
+
+          <div className="nia-cajon__cuerpo" ref={referencia} onScroll={alDesplazar}>
+            {turnos.length === 0 ? (
+              <Sugerencias
+                {...(configuracion.contexto ? { contexto: configuracion.contexto } : {})}
+                onElegir={mandar}
+              />
+            ) : (
+              turnos.map((turno) => <TurnoVisto key={turno.id} turno={turno} />)
+            )}
+          </div>
+
+          {hayNuevo && (
+            <button type="button" className="nia-pildora" onClick={irAlFondo}>
+              ↓ nuevo
+            </button>
+          )}
+
+          <form
+            className="nia-compositor"
+            onSubmit={(evento) => {
+              evento.preventDefault();
+              mandar(borrador);
+            }}
+          >
+            <textarea
+              ref={entrada}
+              className="nia-compositor__entrada"
+              value={borrador}
+              rows={1}
+              placeholder="Pregunta por una empresa o describe el listado que buscas"
+              onChange={(evento) => setBorrador(evento.target.value)}
+              onKeyDown={(evento) => {
+                // Enter envía; Mayús+Enter hace salto de línea.
+                if (evento.key === "Enter" && !evento.shiftKey) {
+                  evento.preventDefault();
+                  mandar(borrador);
+                }
+              }}
+            />
+            {enviando ? (
+              <button type="button" className="nia-compositor__boton" onClick={cancelar}>
+                Parar
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="nia-compositor__boton"
+                disabled={borrador.trim().length === 0}
+              >
+                Enviar
+              </button>
+            )}
+          </form>
         </section>
       )}
 
-      <button
-        className="nia-lanzador"
-        onClick={() => setAbierto((estaba) => !estaba)}
-        aria-expanded={abierto}
-      >
-        <IconoNia />
-        Nia
-        <span className="nia-insignia">BETA</span>
-      </button>
+      <Lanzador
+        abierto={abierto}
+        estado={estadoIcono}
+        onClick={() => setAbierto((antes) => !antes)}
+      />
     </>
+  );
+}
+
+function TurnoVisto({ turno }: { turno: Turno }) {
+  // El markdown se repinta como mucho cada 50 ms, no en cada token.
+  const texto = useThrottle(turno.texto, 50);
+
+  return (
+    <div className="nia-turno">
+      {turno.pregunta && <p className="nia-pregunta">{turno.pregunta}</p>}
+
+      <LineaDeTiempo turno={turno} />
+
+      {texto.length > 0 && (
+        // `aria-live` SOLO aquí: en los pasos convertiría al lector de pantalla
+        // en una ametralladora.
+        <div className="nia-respuesta" aria-live="polite">
+          <Markdown texto={texto} />
+        </div>
+      )}
+
+      <Tarjetas tarjetas={turno.tarjetas} />
+
+      {turno.error && <p className="nia-error">{turno.error}</p>}
+    </div>
   );
 }

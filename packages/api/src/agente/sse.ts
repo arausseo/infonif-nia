@@ -10,7 +10,18 @@ import type { EventoSSE } from "./tipos.js";
  * aquí por si delante hay algo que la respete.
  */
 export function abrirSSE(respuesta: FastifyReply): (evento: EventoSSE) => void {
+  // Las cabeceras que ya haya puesto Fastify —entre ellas las de CORS— se
+  // arrastran a mano. `writeHead` sobre el socket en crudo se salta la capa de
+  // Fastify, así que sin esto el navegador rechaza la respuesta con ERR_FAILED
+  // pese a que el preflight había ido bien. Cuesta encontrarlo porque en `curl`
+  // funciona perfectamente.
+  const cabeceras: Record<string, number | string | string[]> = {};
+  for (const [nombre, valor] of Object.entries(respuesta.getHeaders())) {
+    if (valor !== undefined) cabeceras[nombre] = valor;
+  }
+
   respuesta.raw.writeHead(200, {
+    ...cabeceras,
     "content-type": "text/event-stream; charset=utf-8",
     "cache-control": "no-cache, no-transform",
     connection: "keep-alive",

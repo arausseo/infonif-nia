@@ -9,6 +9,7 @@ import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
+import { registrarMint } from "./rutas/mint.js";
 
 export function construirServidor() {
   const app = Fastify({ loggerInstance: registro, disableRequestLogging: false });
@@ -32,6 +33,7 @@ export function construirServidor() {
   });
 
   registrarConversar(app);
+  registrarMint(app);
 
   app.setErrorHandler((error, peticion, respuesta) => {
     if (esErrorNia(error)) {

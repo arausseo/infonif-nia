@@ -23,6 +23,7 @@ import {
   nuevoIdTurno,
 } from "../agente/conversacion.js";
 import { abrirSSE, cerrarSSE } from "../agente/sse.js";
+import { validarToken } from "../agente/sesion.js";
 import { trazar } from "../agente/trazas.js";
 import type { ContextoPagina } from "../agente/tipos.js";
 
@@ -44,12 +45,8 @@ const Peticion = z
     conversationId: z.string().optional(),
     mensaje: z.string().min(1).max(4000),
     contexto: ContextoPaginaEsquema.optional(),
-    /**
-     * Provisional: en la Fase 4 esto sale del token acuñado por el ASP en
-     * `/internal/mint`, no del cuerpo de la petición. Un usuario no puede
-     * decidir quién es.
-     */
-    usuarioId: z.number().int().positive().optional(),
+    // Sin `usuarioId`: quién es el usuario lo dice el token firmado que acuñó el
+    // ASP en `/internal/mint`, no el cuerpo. Y `.strict()` rechaza el intento.
   })
   .strict();
 
@@ -63,7 +60,12 @@ export function registrarConversar(app: Servidor): void {
       });
     }
 
-    const { mensaje, contexto, usuarioId } = validado.data;
+    const { mensaje, contexto } = validado.data;
+
+    // Quién es el usuario lo dice el token que acuñó el ASP, nunca el cuerpo.
+    const cabecera = peticion.headers.authorization;
+    const sesion = validarToken(cabecera?.replace(/^Bearer /i, ""));
+    const usuarioId = sesion?.usuarioId;
     const conversationId = validado.data.conversationId ?? nuevoIdConversacion();
     const turnoId = nuevoIdTurno();
 

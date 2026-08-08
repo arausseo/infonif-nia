@@ -149,20 +149,51 @@ decide quién es.
 
 ## Fase 4 — Widget
 
-- [ ] Bundle único con Vite, montado en Shadow DOM, CSS propio
-- [ ] Cliente SSE + reducer de turno
-- [ ] Línea de tiempo de pasos con los tres estados y tiempo mínimo de 350 ms
-- [ ] Autoscroll con detección de fondo + píldora "↓ nuevo"
-- [ ] Streaming de texto con throttle de markdown
-- [ ] Registro de tarjetas (segmento, ficha, bloqueado)
-- [ ] Lanzador con los cuatro estados del icono; drawer overlay de 400 px +
+- [x] Bundle único con Vite, montado en Shadow DOM, CSS propio
+- [x] Cliente SSE + reducer de turno
+- [x] Línea de tiempo de pasos con los tres estados y tiempo mínimo de 350 ms
+- [x] Autoscroll con detección de fondo + píldora "↓ nuevo"
+- [x] Streaming de texto con throttle de markdown
+- [x] Registro de tarjetas (segmento, ficha, bloqueado)
+- [x] Lanzador con los cuatro estados del icono; drawer overlay de 400 px +
       modo pantalla completa
-- [ ] Sugerencias contextuales según página
-- [ ] `POST /internal/mint` + página `demo/` que simula el ASP con el snippet real
-- [ ] Persistencia de `conversationId` en `sessionStorage` y rehidratación
+- [x] Sugerencias contextuales según página
+- [x] `POST /internal/mint` + página `demo/` que simula el ASP con el snippet real
+- [x] Persistencia de `conversationId` en `sessionStorage` y rehidratación
 
 **Aceptación:** en la página demo, la conversación sobrevive a una recarga
 completa. Los estilos del sitio no afectan al widget ni viceversa.
+
+**Cumplida** (08/08/2026), comprobada en el navegador y no solo por tests:
+
+- Se pregunta por la ficha de Mercadona, sale la tarjeta `bloqueado` con su
+  precio real. Se recarga la página entera. Se escribe «¿Y las cifras de 2023?»
+  **sin nombrar la empresa**, y el agente sigue hablando de Mercadona: el
+  `conversationId` sobrevive en `sessionStorage` y el historial se rehidrata
+  desde Redis.
+- El lanzador sale en violeta y con `system-ui` sobre una página cuyo CSS pinta
+  todos los botones de rojo y todo de Georgia.
+
+`/internal/mint` cierra el agujero que dejó la Fase 3: **`usuarioId` ya no viaja
+en el cuerpo**. El `.strict()` de la petición lo rechaza, y quién es el usuario
+lo dice un token HMAC de 15 minutos que solo puede acuñar quien tenga el secreto
+compartido.
+
+Tres cosas que solo aparecieron al abrir el navegador:
+
+- **Escribir cabeceras en crudo borra las de CORS.** `writeHead` sobre el socket
+  se salta la capa de Fastify, así que el preflight iba bien y la petición real
+  moría con `ERR_FAILED`. En `curl` funcionaba perfectamente, que es lo que lo
+  hace difícil de ver.
+- **`:host` pierde contra el CSS de la página.** El elemento anfitrión vive en el
+  DOM claro, así que un `* { font-family: Georgia }` lo alcanza y se hereda hacia
+  dentro. La tipografía tuvo que bajar a un contenedor dentro del shadow root,
+  que es inalcanzable desde fuera.
+- **La configuración no puede congelarse al montar.** El token llega por una
+  llamada asíncrona y dura 15 minutos, así que se relee en cada envío.
+
+El markdown es propio, ~90 líneas, y devuelve elementos de React: **nada de
+`dangerouslySetInnerHTML` sobre texto escrito por un modelo**.
 
 ---
 

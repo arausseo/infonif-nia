@@ -23,6 +23,10 @@ curl http://localhost:3000/salud/dependencias
 pnpm verificar
 ```
 
+La demo en http://localhost:5174 imita una ficha del portal. Con
+`?usuario=133627` se entra con plan de registros, y sin nada se navega como
+anónimo: es la forma de ver los dos perfiles del guion.
+
 ## Estructura
 
 ```
@@ -33,7 +37,7 @@ packages/
       agente/       # bucle de herramientas, las 9 herramientas, SSE y prompt
       comun/        # config, logging, errores
     scripts/        # generar-fixtures.ts, sembrar.ts
-  widget/           # React 18 + Vite → bundle único en Shadow DOM
+  widget/           # React 18 + Vite → widget.js único, en Shadow DOM
   semantica/        # embeddings CNAE en build time        (Fase 2)
 demo/               # página que simula el ASP Classic
 ```
@@ -59,4 +63,4 @@ el `widget.js` único que el ASP embebe.
 
 ## Estado
 
-Fases 0 a 3 completas: andamiaje, capa de datos, capa semántica y agente. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.
+Fases 0 a 4 completas: andamiaje, datos, semántica, agente y widget. Ver [docs/PLAN.md](docs/PLAN.md) para el resto.

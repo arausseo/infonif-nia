@@ -1,12 +1,23 @@
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import estilos from "./estilos.css?inline";
-import { Widget } from "./Widget";
-import type { ConfiguracionEmbebida } from "./tipos";
+import { Widget } from "./Widget.js";
+import type { ConfiguracionEmbebida } from "./tipos.js";
 
 const ID_ANFITRION = "nia-anfitrion";
 
 let raiz: Root | undefined;
+
+/**
+ * La configuración se lee en cada envío, no se congela al montar.
+ *
+ * El token de sesión dura 15 minutos, así que la página puede querer renovarlo
+ * sin remontar el widget. Y en la demo llega por una llamada asíncrona que
+ * termina después del montaje.
+ */
+export function configuracionActual(): ConfiguracionEmbebida {
+  return window.__INFONIF_AGENT__ ?? {};
+}
 
 /**
  * Monta el widget dentro de un Shadow DOM propio.
@@ -15,7 +26,7 @@ let raiz: Root | undefined;
  * páginas ASP con años de CSS encima, incluidas páginas de ranking con tráfico
  * orgánico. `mode: "open"` para poder depurar desde la consola.
  */
-export function montar(configuracion: ConfiguracionEmbebida = {}): void {
+export function montar(): void {
   if (document.getElementById(ID_ANFITRION)) return;
 
   const anfitrion = document.createElement("div");
@@ -24,17 +35,20 @@ export function montar(configuracion: ConfiguracionEmbebida = {}): void {
 
   const sombra = anfitrion.attachShadow({ mode: "open" });
 
+  // El CSS se inyecta como <style> dentro del shadow root: una hoja externa no
+  // cruzaría el límite.
   const hoja = document.createElement("style");
   hoja.textContent = estilos;
   sombra.appendChild(hoja);
 
   const contenedor = document.createElement("div");
+  contenedor.className = "nia-raiz";
   sombra.appendChild(contenedor);
 
   raiz = createRoot(contenedor);
   raiz.render(
     <StrictMode>
-      <Widget configuracion={configuracion} />
+      <Widget />
     </StrictMode>,
   );
 }
@@ -47,10 +61,11 @@ export function desmontar(): void {
 
 // Montaje automático: el ASP solo pone el <script async>, no llama a nada.
 if (typeof window !== "undefined") {
-  const arrancar = () => montar(window.__INFONIF_AGENT__ ?? {});
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", arrancar, { once: true });
+    document.addEventListener("DOMContentLoaded", montar, { once: true });
   } else {
-    arrancar();
+    montar();
   }
 }
+
+export type { ConfiguracionEmbebida, ContextoPagina } from "./tipos.js";

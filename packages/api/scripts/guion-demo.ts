@@ -7,6 +7,10 @@
  * ver el protocolo de progreso tal como lo verá el widget.
  */
 
+import { config as cargarDotenv } from "dotenv";
+
+cargarDotenv({ path: [".env", "../../.env"] });
+
 const API = process.env["NIA_URL"] ?? "http://localhost:3000";
 
 interface Turno {
@@ -84,11 +88,27 @@ interface Salida {
 async function conversar(turno: Turno, conversationId?: string): Promise<Salida> {
   const cuerpo: Record<string, unknown> = { mensaje: turno.mensaje };
   if (conversationId) cuerpo["conversationId"] = conversationId;
-  if (turno.usuarioId) cuerpo["usuarioId"] = turno.usuarioId;
+
+  // El usuario se acredita con el token que acuña el ASP contra /internal/mint,
+  // no diciendo su id. Aquí se imita lo que hará el ASP de verdad.
+  const cabeceras: Record<string, string> = { "content-type": "application/json" };
+  if (turno.usuarioId) {
+    const acunado = await fetch(`${API}/internal/mint`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-shared-secret": process.env["AGENT_SHARED_SECRET"] ?? "",
+      },
+      body: JSON.stringify({ usuarioId: turno.usuarioId }),
+    });
+    if (!acunado.ok) throw new Error(`mint devolvió ${acunado.status}`);
+    const { token } = (await acunado.json()) as { token: string };
+    cabeceras["authorization"] = `Bearer ${token}`;
+  }
 
   const respuesta = await fetch(`${API}/v1/conversar`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: cabeceras,
     body: JSON.stringify(cuerpo),
   });
 
