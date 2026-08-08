@@ -8,7 +8,7 @@ import {
   HERRAMIENTAS_PARA_EL_MODELO,
   herramientaPorNombre,
 } from "./herramientas/index.js";
-import { BLOQUE_ESTABLE, bloqueDeContexto } from "./prompt.js";
+import { bloqueEstable, bloqueDeContexto } from "./prompt.js";
 import type { ContextoPagina, ContextoTool, EventoSSE, Tarjeta } from "./tipos.js";
 
 /**
@@ -62,7 +62,7 @@ function sistema(
   return [
     {
       type: "text",
-      text: BLOQUE_ESTABLE,
+      text: bloqueEstable(),
       cache_control: { type: "ephemeral" },
     },
     { type: "text", text: bloqueDeContexto(derechos, contexto) },

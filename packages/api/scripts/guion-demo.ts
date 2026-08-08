@@ -1,7 +1,8 @@
 /**
- * Corre los tres flujos del guion de demo contra el agente real.
+ * Corre los flujos del guion de demo contra el agente real.
  *
  *   pnpm demo            (con la API levantada en :3000)
+ *   pnpm demo D          (solo el flujo D)
  *
  * No es un test: gasta tokens y depende de la red. Es el ensayo, y sirve para
  * ver el protocolo de progreso tal como lo verá el widget.
@@ -72,6 +73,34 @@ const GUION: { flujo: string; turnos: Turno[] }[] = [
         titulo: "el ajuste, en la misma conversación",
         mensaje: "Quita las de menos de 5 años",
         esperado: [/empresas/],
+      },
+    ],
+  },
+  {
+    // Este flujo no estaba en el guion original: se añadió porque falló en una
+    // prueba real. El modelo dijo que el EBITDA no era un campo y se inventó
+    // qué significaban los códigos —colocó el 99022 como «Resultado del
+    // ejercicio», cuando es Apalancamiento—. Ahora el catálogo va en el prompt
+    // y los registros por campo los da construir_segmento.
+    flujo: "D — Campos de un listado",
+    turnos: [
+      {
+        titulo: "el segmento",
+        mensaje: "Panaderías en Madrid",
+        esperado: [/empresas|540/],
+      },
+      {
+        titulo: "qué campos financieros trae",
+        mensaje: "¿Qué campos financieros puedo incluir? ¿Está el EBITDA?",
+        prohibido: [
+          // Las dos formas de fallar: negar un campo que existe…
+          /(EBITDA|ebitda)[^.]{0,60}no (es|est[áa]|figura|existe|se encuentra)/i,
+          /no (es|est[áa]) (un )?campo/i,
+          // …y colocarle a un código una etiqueta que no es la suya.
+          /99022[^\n]{0,40}[Rr]esultado del ejercicio/,
+          /49500[^\n]{0,40}[Aa]palancamiento/,
+        ],
+        esperado: [/EBITDA/i],
       },
     ],
   },
@@ -150,7 +179,11 @@ async function conversar(turno: Turno, conversationId?: string): Promise<Salida>
 
 let fallos = 0;
 
+// `pnpm demo D` corre solo el flujo D. Útil cuando se está arreglando uno.
+const soloEstos = process.argv.slice(2).map((a) => a.toUpperCase());
+
 for (const { flujo, turnos } of GUION) {
+  if (soloEstos.length > 0 && !soloEstos.includes(flujo[0] ?? "")) continue;
   console.log(`\n${"═".repeat(70)}\n${flujo}\n${"═".repeat(70)}`);
   let conversacion: string | undefined;
 
@@ -200,6 +233,6 @@ for (const { flujo, turnos } of GUION) {
 }
 
 console.log(
-  `\n${"═".repeat(70)}\n${fallos === 0 ? "Los tres flujos pasan." : `${fallos} comprobaciones fallidas.`}\n`,
+  `\n${"═".repeat(70)}\n${fallos === 0 ? "Todo pasa." : `${fallos} comprobaciones fallidas.`}\n`,
 );
 if (fallos > 0) process.exitCode = 1;

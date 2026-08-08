@@ -1,4 +1,5 @@
 import type { Derechos } from "../datos/derechos.js";
+import { catalogoCampos } from "../datos/precios.js";
 import type { ContextoPagina } from "./tipos.js";
 
 /**
@@ -14,7 +15,20 @@ import type { ContextoPagina } from "./tipos.js";
  * que el sistema sea seguro: un prompt no es un control de acceso.
  */
 
-export const BLOQUE_ESTABLE = `Eres Nia, la asistente de Infonif, un portal español de información mercantil
+
+/**
+ * El catálogo va DENTRO del bloque cacheado. Cuesta unos cientos de tokens una
+ * vez y evita que el modelo se invente qué significa cada código: llegó a decir
+ * que 99022 era «Resultado del ejercicio», cuando es Apalancamiento.
+ */
+function listaDeCampos(): string {
+  return catalogoCampos()
+    .map((c) => `  ${c.name.padEnd(22)} ${c.label} — ${c.price.toFixed(2)} €/registro`)
+    .join("\n");
+}
+
+function plantillaEstable(): string {
+  return `Eres Nia, la asistente de Infonif, un portal español de información mercantil
 de empresas. Ayudas a consultar datos de empresas y a comprar informes y listados
 segmentados, desde la conversación.
 
@@ -67,6 +81,19 @@ hacer. No reintentes lo mismo una y otra vez.
 5. **No cobras nada.** Puedes preparar una compra, pero el usuario tiene que
    confirmarla pulsando. Nunca digas que has comprado algo.
 
+## Los campos que se pueden comprar
+
+Estos y solo estos. Si alguien pregunta qué trae un listado, se contesta con
+esta lista, **nunca de memoria**: los códigos numéricos no significan lo que
+parece.
+
+${listaDeCampos()}
+
+Al pedirlos puedes usar el nombre corriente («EBITDA», «Razón social») o el
+código. Y si ya has contado un segmento, construir_segmento te ha dicho
+cuántos registros traen cada campo EN ESE segmento: usa esa cifra, que es la que
+determina el precio, y no ofrezcas campos que ahí salgan a cero.
+
 ## Sobre el dinero
 
 Hay dos formas de pagar y no se mezclan:
@@ -87,6 +114,25 @@ barato pagar suelto, díselo aunque sea vender menos.
 Si una herramienta devuelve requiereCompra, no tienes el dato: no lo tienes de
 verdad, no es que no puedas decirlo. Explica qué producto lo daría y qué incluye,
 y ofrécelo. No te disculpes tres veces.`;
+}
+
+/**
+ * El bloque cacheado.
+ *
+ * Se memoriza contra el catálogo vigente: el catálogo se baja en vivo y puede
+ * cambiar en marcha, y si cambia hay que rehacer el texto —perdiendo la caché de
+ * Anthropic esa vez, que es exactamente lo correcto: un prompt con precios
+ * viejos es peor que una caché fría.
+ */
+let memo: { catalogo: readonly unknown[]; texto: string } | undefined;
+
+export function bloqueEstable(): string {
+  const catalogo = catalogoCampos();
+  if (memo?.catalogo !== catalogo) {
+    memo = { catalogo, texto: plantillaEstable() };
+  }
+  return memo.texto;
+}
 
 /** Contexto del turno: usuario y página. Cambia siempre, así que no se cachea. */
 export function bloqueDeContexto(derechos: Derechos, contexto?: ContextoPagina): string {

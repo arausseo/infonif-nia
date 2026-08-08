@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verificar": "tsx scripts/comprobar-en-vivo.ts",
-    "demo": "tsx scripts/guion-demo.ts"
+    "demo": "tsx scripts/guion-demo.ts",
+    "catalogo": "tsx scripts/comprobar-catalogo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

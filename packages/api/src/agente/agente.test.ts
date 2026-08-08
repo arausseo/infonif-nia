@@ -6,7 +6,7 @@ import {
   HERRAMIENTAS_PARA_EL_MODELO,
   herramientaPorNombre,
 } from "./herramientas/index.js";
-import { BLOQUE_ESTABLE, bloqueDeContexto } from "./prompt.js";
+import { bloqueEstable, bloqueDeContexto } from "./prompt.js";
 import { recortarSinRomperHerramientas } from "./conversacion.js";
 import { DERECHOS_ANONIMO, interpretarPlan } from "../datos/derechos.js";
 
@@ -88,14 +88,14 @@ describe("registro de herramientas", () => {
 
 describe("prompt de sistema", () => {
   it("lleva las reglas no negociables que dependen del comportamiento", () => {
-    expect(BLOQUE_ESTABLE).toMatch(/No valoras el riesgo/i);
-    expect(BLOQUE_ESTABLE).toMatch(/ejercicio/i);
-    expect(BLOQUE_ESTABLE).toMatch(/5 empresas/);
-    expect(BLOQUE_ESTABLE).toMatch(/No cobras nada/i);
+    expect(bloqueEstable()).toMatch(/No valoras el riesgo/i);
+    expect(bloqueEstable()).toMatch(/ejercicio/i);
+    expect(bloqueEstable()).toMatch(/5 empresas/);
+    expect(bloqueEstable()).toMatch(/No cobras nada/i);
   });
 
   it("el bloque estable no depende del usuario: si no, la caché no sirve", () => {
-    expect(BLOQUE_ESTABLE).not.toMatch(/\$\{|registrosDisponibles|usuarioId/);
+    expect(bloqueEstable()).not.toMatch(/\$\{|registrosDisponibles|usuarioId/);
   });
 
   it("el contexto distingue los tres perfiles", () => {

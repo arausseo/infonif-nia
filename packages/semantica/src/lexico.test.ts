@@ -100,12 +100,15 @@ describe("buscarLexico", () => {
     expect(new Set(resultado).size).toBe(resultado.length);
   });
 
-  it("resuelve en menos de 1 ms, sin tocar el modelo", () => {
+  it("resuelve sin tocar el modelo", () => {
     buscarLexico("logística"); // calentar
     const arranque = performance.now();
     for (let i = 0; i < 50; i++) buscarLexico("logística");
     const porConsulta = (performance.now() - arranque) / 50;
-    expect(porConsulta).toBeLessThan(1);
+    // Lo que se afirma es que NO hay inferencia de por medio, no un tiempo
+    // concreto: una pasada del modelo son decenas de milisegundos. El umbral es
+    // holgado a propósito, que si no falla en una máquina ocupada.
+    expect(porConsulta).toBeLessThan(10);
   });
 });
 

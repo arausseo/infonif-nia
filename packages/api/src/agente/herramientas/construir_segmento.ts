@@ -1,6 +1,6 @@
 import { FiltroSegmento } from "../../datos/infonif/filtros.js";
 import { contarSegmento } from "../../datos/infonif/segmentos.js";
-import { calcularCoste, recomendarPlan } from "../../datos/precios.js";
+import { calcularCoste, camposDelSegmento, recomendarPlan } from "../../datos/precios.js";
 import { definirTool } from "../tipos.js";
 
 /** Campos de contacto que se cotizan por defecto: lo que casi todo el mundo pide. */
@@ -47,6 +47,10 @@ permite entender por qué el segmento se le ha quedado corto y qué aflojar.`,
         ? recomendarPlan(segmento.cantidad, coste.enEuros.total)
         : undefined;
 
+    // Qué campos trae ESTE segmento y cuántos registros aporta cada uno. Es lo
+    // que contesta a "¿qué campos trae el listado?" sin que nadie improvise.
+    const campos = camposDelSegmento(segmento.camposDisponibles, segmento.cantidad);
+
     ctx.progreso("Segmento listo");
 
     return {
@@ -82,6 +86,19 @@ permite entender por qué el segmento se le ha quedado corto y qué aflojar.`,
                 campos: CAMPOS_POR_DEFECTO,
                 nota: "El precio depende de los campos elegidos. Se puede recalcular con cotizar.",
               },
+        camposDisponibles: campos.conDatos.map((c) => ({
+          campo: c.campo,
+          nombre: c.nombre,
+          registros: c.registros,
+          precio: c.precio,
+        })),
+        ...(campos.sinDatos.length > 0
+          ? {
+              camposSinNingunRegistro: campos.sinDatos,
+              notaCampos:
+                "Esos campos no los tiene ninguna empresa del segmento. No los ofrezcas.",
+            }
+          : {}),
         ...(plan
           ? {
               plan: {

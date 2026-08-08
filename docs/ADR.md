@@ -164,3 +164,47 @@ Infonif esos colores ya significan solvente y riesgo. Usar un color que hoy no
 cargue significado en la interfaz, reservado exclusivamente para lo que es IA.
 
 **Pendiente.** Verificar marca en OEPM y EUIPO antes de imprimir nada.
+
+---
+
+## ADR-011 · El catálogo de campos comprables se baja en vivo
+
+**Contexto.** Los 34 campos que se pueden incluir en un listado —CIF, Email,
+EBITDA, ROA…— llevan cada uno su precio por registro. Estaban copiados a mano en
+`datos/fixtures/infonif/campos-comprables.json`, sacados del `fields.json` que
+consume el buscador actual de Infonif.
+
+Con el corpus CNAE, tenerlo congelado solo envejece etiquetas. Aquí envejecen
+**precios**, y la regla 7 dice que cotizar mal es facturar mal. Si Infonif sube
+el Email de 0,05 a 0,06 y nosotros seguimos con la copia de agosto, cobramos de
+menos en cada listado y nadie se entera hasta que alguien cuadre cuentas.
+
+Y hay un segundo problema, este observado en una prueba real: el modelo no veía
+el catálogo. Cuando le preguntaban por campos financieros se inventaba qué
+significaba cada código —dijo que el 99022 era «Resultado del ejercicio», cuando
+es Apalancamiento— y llegó a negar que el EBITDA fuera un campo.
+
+**Decisión.** El catálogo se descarga de
+`infonif.economia3.com/bases-de-datos/herramienta/fields.json` al arrancar y se
+mantiene con el mismo patrón que el resumen: se sirve lo que hay mientras se
+refresca por detrás, con cerrojo en Redis para que no lo bajen todos los nodos a
+la vez. La copia del repositorio queda como semilla —para arrancar sabiendo algo
+y para que los tests corran sin red— y como último respaldo.
+
+Un cambio de precio se registra a nivel `warn`. Es un hecho de negocio.
+
+Además el catálogo entero va **dentro del bloque cacheado del prompt**: cuesta
+unos cientos de tokens una sola vez y le quita al modelo la ocasión de adivinar.
+`bloqueEstable()` se memoriza contra el catálogo vigente, así que un refresco
+rehace el texto y tira esa caché: es lo correcto, un prompt con precios viejos es
+peor que una caché fría.
+
+**Consecuencias.** `precios.ts` deja de tener catálogo propio y sus índices por
+nombre y etiqueta se reconstruyen cuando cambia el array. `GET
+/salud/dependencias` dice si el catálogo es «vivo» o «semilla» y su antigüedad.
+`pnpm --filter @nia/api catalogo` contrasta origen y copia congelada, y un test
+hace lo mismo cuando hay red (se salta cuando no la hay).
+
+Queda una pregunta para Infonif: `fields.json` es un fichero estático servido por
+el mismo sitio, no un endpoint del API. Si algún día lo mueven o lo versionan por
+build, esto se entera por el `warn` de campo retirado, no antes.

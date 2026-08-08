@@ -34,6 +34,10 @@ const EsquemaEntorno = z.object({
    * si Infonif estuviera caído dos días, preferimos servir un vocabulario viejo
    * a no poder ni traducir una provincia.
    */
+  /** Cuánto se considera fresco el catálogo de campos comprables. */
+  INFONIF_CATALOGO_TTL_SEGUNDOS: z.coerce.number().int().positive().default(86_400),
+  INFONIF_CATALOGO_CADUCIDAD_SEGUNDOS: z.coerce.number().int().positive().default(604_800),
+
   INFONIF_RESUMEN_CADUCIDAD_SEGUNDOS: z.coerce.number().int().positive().default(604_800),
 
   // SQL Server. Solo lectura, siempre.

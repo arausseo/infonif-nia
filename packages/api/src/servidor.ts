@@ -7,6 +7,7 @@ import { registro } from "./comun/registro.js";
 import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
+import { estadoCatalogo, prepararCatalogo } from "./datos/catalogo.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
 import { registrarMint } from "./rutas/mint.js";
@@ -29,6 +30,7 @@ export function construirServidor() {
       infonif: { ...infonif, url: config.INFONIF_API_URL },
       redis,
       cacheResumen: estadoCacheResumen(),
+      catalogoCampos: estadoCatalogo(),
     };
   });
 
@@ -67,6 +69,7 @@ async function arrancar(): Promise<void> {
   // Sin esperarlo: el servicio ya acepta peticiones mientras el resumen baja.
   // Así el primer usuario no paga los 26 segundos ni con Redis vacío.
   precargarResumen();
+  void prepararCatalogo();
 }
 
 /** `true` solo si este módulo es el que se ha ejecutado, no cuando lo importa un test. */

@@ -2,10 +2,8 @@ import { z } from "zod";
 import { ErrorValidacion } from "../comun/errores.js";
 import { consumoDeSaldo, type ConsumoSaldo, type Derechos } from "./derechos.js";
 import type { CampoDisponible } from "./infonif/tipos.js";
-// Se importa, no se lee de disco: así viaja dentro del bundle y no depende de
-// dónde quede el fichero al desplegar.
-import catalogoCrudo from "./fixtures/infonif/campos-comprables.json";
 import skus from "./fixtures/skus.json";
+import { catalogoCampos, type CampoComprable } from "./catalogo.js";
 
 /**
  * Fuente única del cálculo de precios. **No hay lógica de precio en ningún
@@ -25,25 +23,7 @@ const IVA = 0.21;
 
 // ─── Catálogo de campos comprables ────────────────────────────────────────────
 
-const CampoComprable = z.object({
-  name: z.string().min(1),
-  group: z.enum(["contacto", "comerciales", "financieros"]),
-  label: z.string().min(1),
-  price: z.number().positive(),
-  requiredFilter: z.boolean().optional(),
-  partida: z.string().optional(),
-  tipoPartida: z.enum(["Perdida", "InformacionFinanciera", "Ratios"]).optional(),
-});
-
-export type CampoComprable = z.infer<typeof CampoComprable>;
-
-const CATALOGO: readonly CampoComprable[] = z.array(CampoComprable).parse(catalogoCrudo);
-
-const POR_NOMBRE = new Map(CATALOGO.map((campo) => [campo.name, campo]));
-
-export function catalogoCampos(): readonly CampoComprable[] {
-  return CATALOGO;
-}
+export { catalogoCampos, type CampoComprable } from "./catalogo.js";
 
 /**
  * Busca un campo por su nombre técnico o por su etiqueta.
@@ -57,9 +37,8 @@ export function catalogoCampos(): readonly CampoComprable[] {
  * herramienta, es un examen.
  */
 export function campoPorNombre(nombre: string): CampoComprable | undefined {
-  const exacto = POR_NOMBRE.get(nombre);
-  if (exacto) return exacto;
-  return POR_ETIQUETA.get(normalizarNombre(nombre));
+  const { porNombre, porEtiqueta } = indices();
+  return porNombre.get(nombre) ?? porEtiqueta.get(normalizarNombre(nombre));
 }
 
 function normalizarNombre(texto: string): string {
@@ -71,11 +50,29 @@ function normalizarNombre(texto: string): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-/** etiqueta y nombre normalizados → campo. Se indexan los dos. */
-const POR_ETIQUETA = new Map<string, CampoComprable>();
-for (const campo of CATALOGO) {
-  POR_ETIQUETA.set(normalizarNombre(campo.label), campo);
-  POR_ETIQUETA.set(normalizarNombre(campo.name), campo);
+/**
+ * Índices por nombre y por etiqueta.
+ *
+ * Se reconstruyen cuando cambia el catálogo, que ahora se baja en vivo y puede
+ * cambiar en marcha. Se compara la referencia del array: `catalogo.ts` sustituye
+ * el array entero al refrescar, así que basta.
+ */
+let indexadoDe: readonly CampoComprable[] | undefined;
+let porNombreCache = new Map<string, CampoComprable>();
+let porEtiquetaCache = new Map<string, CampoComprable>();
+
+function indices() {
+  const actual = catalogoCampos();
+  if (indexadoDe !== actual) {
+    porNombreCache = new Map(actual.map((c) => [c.name, c]));
+    porEtiquetaCache = new Map();
+    for (const campo of actual) {
+      porEtiquetaCache.set(normalizarNombre(campo.label), campo);
+      porEtiquetaCache.set(normalizarNombre(campo.name), campo);
+    }
+    indexadoDe = actual;
+  }
+  return { porNombre: porNombreCache, porEtiqueta: porEtiquetaCache };
 }
 
 /** El catálogo tal como se le enseña al modelo: código, etiqueta y precio. */
@@ -84,7 +81,11 @@ export function catalogoParaElModelo(): {
   nombre: string;
   precio: number;
 }[] {
-  return CATALOGO.map((c) => ({ campo: c.name, nombre: c.label, precio: c.price }));
+  return catalogoCampos().map((c) => ({
+    campo: c.name,
+    nombre: c.label,
+    precio: c.price,
+  }));
 }
 
 // ─── Cotización ───────────────────────────────────────────────────────────────
@@ -349,4 +350,63 @@ export function informePorSku(sku: string): Informe | undefined {
 
 export function catalogoInformes(): readonly Informe[] {
   return INFORMES;
+}
+
+// ─── Qué campos trae de verdad un segmento ────────────────────────────────────
+
+export interface CampoDelSegmento {
+  /** Nombre técnico, el que espera la descarga. */
+  campo: string;
+  /** Cómo se llama para una persona. */
+  nombre: string;
+  grupo: CampoComprable["group"];
+  precio: number;
+  /** Registros del segmento que traen este campo. */
+  registros: number;
+  importe: number;
+}
+
+/**
+ * Los campos comprables de un segmento, con cuántos registros aporta cada uno.
+ *
+ * **Solo campos del catálogo, y solo los que algún registro tiene.** Un campo
+ * que no puede comprarse no es un campo disponible, y uno que no tiene ni un
+ * registro tampoco: ofrecerlo sería vender aire.
+ *
+ * Existe porque el modelo, al que nunca se le había enseñado el catálogo, se
+ * inventaba las etiquetas de los códigos numéricos: llegó a decir que 99022 era
+ * «Resultado del ejercicio» —es Apalancamiento— y que 99050-99052 eran
+ * «Activo, Patrimonio neto, Pasivo», que tampoco. Ahora no tiene que recordar
+ * nada: se lo damos.
+ */
+export function camposDelSegmento(
+  disponibles: readonly CampoDisponible[],
+  empresas: number,
+  opciones: { tipoCuenta?: string; ejercicios?: readonly string[] } = {},
+): { conDatos: CampoDelSegmento[]; sinDatos: string[] } {
+  const conDatos: CampoDelSegmento[] = [];
+  const sinDatos: string[] = [];
+
+  for (const campo of catalogoCampos()) {
+    const registros =
+      campo.name === "RazonSocial"
+        ? empresas
+        : registrosConCampo(campo, disponibles, opciones);
+
+    if (registros === 0) {
+      sinDatos.push(campo.label);
+      continue;
+    }
+
+    conDatos.push({
+      campo: campo.name,
+      nombre: campo.label,
+      grupo: campo.group,
+      precio: campo.price,
+      registros,
+      importe: redondear(campo.price * registros),
+    });
+  }
+
+  return { conDatos, sinDatos };
 }
