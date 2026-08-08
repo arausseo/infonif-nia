@@ -588,6 +588,46 @@ Mercadona (`A46103834`), el NIF que cita el flujo A del guion, está aquí.
 
 ---
 
+## 5 bis. La caché del resumen
+
+`GET /buscador/resumen` **tarda ~26 s**, medido cuatro veces en dos días:
+25,7 · 25,8 · 26,4 · 25,7. No es un pico, es lo que cuesta.
+
+Y sus datos **cambian una vez al día**, cuando Infonif incorpora o da de baja
+empresas. Confirmado por el cliente y comprobado: dos descargas separadas 2,5
+horas salieron **idénticas byte a byte** (`sha256` de los 786 KB: `a7a2353…`).
+
+Con esa cadencia, una caché con caducidad dura sería un error sutil: cada vez que
+venciera, el usuario que llegara primero pagaría 26 segundos. Así que la caché
+**sirve lo viejo mientras se refresca**:
+
+| Situación                       | Qué hace                             | Medido     |
+| ------------------------------- | ------------------------------------ | ---------- |
+| En memoria del proceso          | responde                             | **0 ms**   |
+| En Redis, fresco                | responde                             | **129 ms** |
+| En Redis, **caducado (2 días)** | responde igual y refresca por detrás | **89 ms**  |
+| No hay nada en ningún sitio     | única vez que se espera              | 25.718 ms  |
+
+El último caso solo puede pasar en un arranque con Redis vacío, y aun así hay
+precarga: el servicio acepta peticiones mientras el resumen baja.
+
+Detalles que importan:
+
+- **Cerrojo en Redis** (`SET … NX EX 180`) para que, con varios nodos, solo uno
+  cargue con los 26 segundos.
+- La caducidad de la clave en Redis (7 días) es una red de seguridad, no el TTL.
+  Quien decide si refrescar es el `generadoEn` guardado con los datos. Si Infonif
+  estuviera caído dos días, preferimos servir un vocabulario viejo a no poder
+  traducir ni una provincia.
+- `/salud/dependencias` publica `cacheResumen` con la antigüedad y si está
+  refrescando, para poder verlo sin entrar en Redis.
+
+Servir un vocabulario de ayer no tiene coste real: son nombres de provincia,
+códigos CNAE y conteos de faceta, que no facturan nada. **El precio sale de
+`/buscador/filtrar`, que siempre va en vivo.**
+
+---
+
 ## 6. Qué cambia esto respecto a lo escrito
 
 Ninguna decisión de `docs/ADR.md` se toca sin hablarlo.

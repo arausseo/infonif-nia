@@ -9,76 +9,193 @@ import { ResumenInfonif, type NodoFaceta } from "./tipos.js";
  * El vocabulario de filtros: provincias, CNAE, sectores y rangos, con sus
  * conteos. Sale de `GET /buscador/resumen`.
  *
- * **Tarda ~26 segundos.** No puede colgar de una petición del usuario: se cachea
- * en Redis y se guarda además en memoria del proceso. Se precarga al arrancar.
+ * **Tarda ~26 segundos**, medido varias veces: no es un pico, es lo que cuesta.
+ * Así que ninguna petición de usuario puede esperarlo.
  *
- * No hay copia de respaldo en disco a propósito. Servir un vocabulario caducado
- * sin avisar es peor que fallar: la copia que teníamos de su fichero estático
- * decía 3,3 millones de empresas cuando el API dice 2,7, y contaba 24 empresas
- * con cuentas de 2024 cuando hay 1,1 millones.
+ * Los datos cambian una vez al día, cuando Infonif incorpora o da de baja
+ * empresas. Comprobado: dos descargas separadas 2,5 horas salieron idénticas
+ * byte a byte. Con esa cadencia, una caché con caducidad dura sería un error
+ * sutil: cada vez que venciera, el usuario que llegara primero pagaría los 26
+ * segundos. Cuatro veces al día con TTL de 6 h.
+ *
+ * Por eso la caché es de las que **sirven lo viejo mientras se refrescan**:
+ *
+ *   - fresco (< TTL)  → se sirve y ya está
+ *   - caducado        → se sirve IGUAL, y el refresco arranca en segundo plano
+ *   - nada en caché   → única vez que se espera
+ *
+ * Servir un vocabulario de ayer no tiene coste real: son nombres de provincia y
+ * códigos CNAE, y un conteo de facetas que no factura nada. El precio sale de
+ * `/buscador/filtrar`, que siempre se consulta en vivo.
  */
 
-const CLAVE_REDIS = "nia:infonif:resumen:v1";
+const CLAVE_REDIS = "nia:infonif:resumen:v2";
+/** Evita que varios nodos se pongan a descargar los mismos 26 segundos. */
+const CLAVE_CERROJO = "nia:infonif:resumen:refrescando";
 
-let enMemoria: ResumenInfonif | undefined;
-let enVuelo: Promise<ResumenInfonif> | undefined;
+interface EntradaCache {
+  /** Milisegundos desde epoch en que se descargó del API. */
+  generadoEn: number;
+  resumen: ResumenInfonif;
+}
 
-async function descargar(): Promise<ResumenInfonif> {
-  const crudo = await infonif("/buscador/resumen", { tiempoLimiteMs: 60_000 });
-  const resumen = ResumenInfonif.parse(crudo);
+let enMemoria: EntradaCache | undefined;
+let enVuelo: Promise<EntradaCache> | undefined;
+let refrescando = false;
+
+/** Pura, para poder probar la decisión sin red ni reloj real. */
+export function estaFresco(
+  generadoEn: number,
+  ahora: number,
+  ttlSegundos: number,
+): boolean {
+  return ahora - generadoEn < ttlSegundos * 1000;
+}
+
+async function descargar(): Promise<EntradaCache> {
+  registro.info("descargando el resumen de Infonif (tarda ~26 s)");
+  const crudo = await infonif("/buscador/resumen", { tiempoLimiteMs: 90_000 });
+  const entrada: EntradaCache = {
+    generadoEn: Date.now(),
+    resumen: ResumenInfonif.parse(crudo),
+  };
 
   try {
+    // La caducidad en Redis es solo una red de seguridad, muy por encima del
+    // TTL de frescura: lo que decide si hay que refrescar es `generadoEn`.
     await obtenerRedis().set(
       CLAVE_REDIS,
-      JSON.stringify(resumen),
+      JSON.stringify(entrada),
       "EX",
-      config.INFONIF_RESUMEN_TTL_SEGUNDOS,
+      config.INFONIF_RESUMEN_CADUCIDAD_SEGUNDOS,
     );
   } catch (error) {
     registro.warn({ err: String(error) }, "no se pudo cachear el resumen en Redis");
   }
 
-  return resumen;
+  return entrada;
 }
 
-/** Devuelve el resumen. Memoria → Redis → API. Una sola descarga concurrente. */
+async function leerDeRedis(): Promise<EntradaCache | undefined> {
+  try {
+    const crudo = await obtenerRedis().get(CLAVE_REDIS);
+    if (!crudo) return undefined;
+    const entrada = JSON.parse(crudo) as { generadoEn?: unknown; resumen?: unknown };
+    if (typeof entrada.generadoEn !== "number") return undefined;
+    return {
+      generadoEn: entrada.generadoEn,
+      resumen: ResumenInfonif.parse(entrada.resumen),
+    };
+  } catch (error) {
+    registro.warn({ err: String(error) }, "Redis no sirvió el resumen");
+    return undefined;
+  }
+}
+
+/**
+ * Lanza el refresco sin esperarlo. Con cerrojo en Redis para que, si hay varios
+ * nodos, solo uno cargue con los 26 segundos.
+ */
+function refrescarEnSegundoPlano(): void {
+  if (refrescando) return;
+  refrescando = true;
+
+  void (async () => {
+    try {
+      const cerrojo = await obtenerRedis()
+        .set(CLAVE_CERROJO, "1", "EX", 180, "NX")
+        .catch(() => "OK"); // sin Redis, refresca igual: peor es no refrescar nunca
+      if (cerrojo !== "OK") {
+        registro.debug("otro nodo ya está refrescando el resumen");
+        return;
+      }
+      const entrada = await descargar();
+      enMemoria = entrada;
+      indice = undefined;
+      registro.info("resumen refrescado en segundo plano");
+    } catch (error) {
+      // Da igual: se sigue sirviendo lo viejo y se reintentará en la próxima.
+      registro.warn({ err: String(error) }, "falló el refresco del resumen");
+    } finally {
+      refrescando = false;
+    }
+  })();
+}
+
+/**
+ * Devuelve el resumen. Solo espera si no hay absolutamente nada cacheado.
+ */
 export async function obtenerResumen(): Promise<ResumenInfonif> {
-  if (enMemoria) return enMemoria;
-  if (enVuelo) return enVuelo;
+  const ttl = config.INFONIF_RESUMEN_TTL_SEGUNDOS;
+
+  if (enMemoria) {
+    if (!estaFresco(enMemoria.generadoEn, Date.now(), ttl)) refrescarEnSegundoPlano();
+    return enMemoria.resumen;
+  }
+
+  if (enVuelo) return (await enVuelo).resumen;
 
   enVuelo = (async () => {
-    try {
-      const cacheado = await obtenerRedis().get(CLAVE_REDIS);
-      if (cacheado) {
-        const resumen = ResumenInfonif.parse(JSON.parse(cacheado));
-        registro.debug("resumen servido desde Redis");
-        return resumen;
-      }
-    } catch (error) {
-      registro.warn({ err: String(error) }, "Redis no sirvió el resumen; voy al API");
-    }
-    registro.info("descargando el resumen de Infonif (tarda ~26 s)");
+    const deRedis = await leerDeRedis();
+    if (deRedis) return deRedis;
     return descargar();
   })();
 
   try {
     enMemoria = await enVuelo;
     indice = undefined;
-    return enMemoria;
+    if (!estaFresco(enMemoria.generadoEn, Date.now(), ttl)) refrescarEnSegundoPlano();
+    return enMemoria.resumen;
   } finally {
     enVuelo = undefined;
   }
 }
 
-/** Descarta lo cacheado. Para tests y para un refresco forzado. */
+export interface EstadoCache {
+  cargado: boolean;
+  generadoEn?: string;
+  antiguedadSegundos?: number;
+  fresco?: boolean;
+  refrescando: boolean;
+}
+
+/** Para /salud/dependencias: saber si se está sirviendo algo viejo. */
+export function estadoCacheResumen(): EstadoCache {
+  if (!enMemoria) return { cargado: false, refrescando };
+  const antiguedad = Math.round((Date.now() - enMemoria.generadoEn) / 1000);
+  return {
+    cargado: true,
+    generadoEn: new Date(enMemoria.generadoEn).toISOString(),
+    antiguedadSegundos: antiguedad,
+    fresco: estaFresco(
+      enMemoria.generadoEn,
+      Date.now(),
+      config.INFONIF_RESUMEN_TTL_SEGUNDOS,
+    ),
+    refrescando,
+  };
+}
+
+/**
+ * Precarga al arrancar, sin bloquear el arranque. Así el primer usuario no paga
+ * los 26 segundos ni siquiera en un despliegue con Redis vacío.
+ */
+export function precargarResumen(): void {
+  void obtenerResumen().catch((error: unknown) => {
+    registro.warn({ err: String(error) }, "no se pudo precargar el resumen");
+  });
+}
+
+/** Descarta lo cacheado en memoria. Para tests y para un refresco forzado. */
 export function olvidarResumen(): void {
   enMemoria = undefined;
   indice = undefined;
+  refrescando = false;
 }
 
 /** Inyecta un resumen ya cargado. Solo para tests. */
-export function fijarResumen(resumen: ResumenInfonif): void {
-  enMemoria = resumen;
+export function fijarResumen(resumen: ResumenInfonif, generadoEn = Date.now()): void {
+  enMemoria = { generadoEn, resumen };
   indice = undefined;
 }
 

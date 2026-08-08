@@ -23,8 +23,18 @@ const EsquemaEntorno = z.object({
   INFONIF_API_URL: z.string().url().default("https://bbdd-api.infonif.es/api"),
   INFONIF_API_KEY: z.string().optional(),
   INFONIF_TIEMPO_LIMITE_MS: z.coerce.number().int().positive().default(45_000),
-  /** Segundos que dura en Redis la caché del resumen de facetas. */
-  INFONIF_RESUMEN_TTL_SEGUNDOS: z.coerce.number().int().positive().default(21_600),
+  /**
+   * Cuánto se considera fresco el resumen de facetas. Sus datos cambian una vez
+   * al día, así que 24 h. Pasado ese tiempo NO se descarta: se sigue sirviendo
+   * mientras se refresca por detrás.
+   */
+  INFONIF_RESUMEN_TTL_SEGUNDOS: z.coerce.number().int().positive().default(86_400),
+  /**
+   * Cuánto sobrevive en Redis. Es una red de seguridad muy por encima del TTL:
+   * si Infonif estuviera caído dos días, preferimos servir un vocabulario viejo
+   * a no poder ni traducir una provincia.
+   */
+  INFONIF_RESUMEN_CADUCIDAD_SEGUNDOS: z.coerce.number().int().positive().default(604_800),
 
   // SQL Server. Solo lectura, siempre.
   // Fuera del camino crítico del MVP: los derechos se resuelven por su API

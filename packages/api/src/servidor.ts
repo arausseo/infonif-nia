@@ -6,6 +6,7 @@ import { config, origenesPermitidos } from "./comun/config.js";
 import { registro } from "./comun/registro.js";
 import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
+import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 
 export function construirServidor() {
@@ -25,6 +26,7 @@ export function construirServidor() {
       ok: infonif.disponible && redis.disponible,
       infonif: { ...infonif, url: config.INFONIF_API_URL },
       redis,
+      cacheResumen: estadoCacheResumen(),
     };
   });
 
@@ -56,6 +58,10 @@ async function arrancar(): Promise<void> {
   }
 
   await app.listen({ port: config.PUERTO, host: "0.0.0.0" });
+
+  // Sin esperarlo: el servicio ya acepta peticiones mientras el resumen baja.
+  // Así el primer usuario no paga los 26 segundos ni con Redis vacío.
+  precargarResumen();
 }
 
 /** `true` solo si este módulo es el que se ha ejecutado, no cuando lo importa un test. */

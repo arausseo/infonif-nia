@@ -10,6 +10,7 @@
 import { buscarEmpresas } from "../src/datos/infonif/empresas.js";
 import { compilar, type FiltroSegmento } from "../src/datos/infonif/filtros.js";
 import {
+  estadoCacheResumen,
   obtenerEjerciciosRecientes,
   obtenerResumen,
   resolverProvincias,
@@ -40,6 +41,17 @@ async function principal(): Promise<void> {
   console.log(
     `  ejercicios recientes: ${anios.map((a) => `${a.id} (${miles(a.data)})`).join(" · ")}`,
   );
+
+  const cache = estadoCacheResumen();
+  console.log(
+    `  caché: ${cache.fresco ? "fresca" : "caducada, sirviendo mientras refresca"}` +
+      ` · ${cache.antiguedadSegundos} s de antigüedad`,
+  );
+  // La segunda lectura no debe volver a la red aunque esté caducada.
+  const segunda = await cronometrar("segunda lectura del resumen", obtenerResumen);
+  if (segunda.cantidad !== resumen.cantidad) {
+    throw new Error("la caché ha devuelto un resumen distinto");
+  }
 
   console.log("\n=== 2. Búsqueda por nombre (flujo A del demo) ======================");
   const { empresas, posiblesMas } = await cronometrar("autocomplete q=mercadona", () =>
