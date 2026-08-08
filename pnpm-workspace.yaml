@@ -1,0 +1,8 @@
+packages:
+  - "packages/*"
+  - "demo"
+
+# esbuild necesita su script de instalación para dejar el binario de la
+# plataforma en su sitio. Lo usan Vite, Vitest, tsx y tsup.
+allowBuilds:
+  esbuild: true

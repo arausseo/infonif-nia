@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.local
+*.log
+.DS_Store
+.vite/
+.turbo/
+*.tsbuildinfo
+
+# artefacto binario de embeddings (se regenera con `pnpm embeddings`)
+packages/semantica/dist/
+packages/semantica/artefactos/*.bin

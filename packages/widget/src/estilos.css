@@ -1,0 +1,125 @@
+/*
+ * CSS propio, sin Tailwind (ADR-006). Vive dentro del Shadow DOM, así que las
+ * variables se declaran en :host — `:root` no cruza el límite del shadow root.
+ *
+ * ADR-010: el acento de IA no puede ser verde ni rojo. En Infonif esos colores
+ * ya significan solvente y riesgo. Violeta, reservado a lo que es IA.
+ */
+
+:host {
+  --nia-acento: #6246ea;
+  --nia-acento-suave: #eee9ff;
+  --nia-tinta: #14161f;
+  --nia-tinta-suave: #5b6072;
+  --nia-papel: #ffffff;
+  --nia-borde: #e3e5ee;
+  --nia-sombra: 0 8px 30px rgba(20, 22, 31, 0.16);
+  --nia-radio: 14px;
+
+  all: initial;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  color: var(--nia-tinta);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.nia-lanzador {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483000;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 12px 18px;
+  border: none;
+  border-radius: 999px;
+
+  background: var(--nia-acento);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+
+  box-shadow: var(--nia-sombra);
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+
+.nia-lanzador:hover {
+  transform: translateY(-1px);
+}
+
+.nia-lanzador:focus-visible {
+  outline: 3px solid var(--nia-acento-suave);
+  outline-offset: 2px;
+}
+
+.nia-insignia {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+/* Marca: la N de tres barras ascendentes que también es un gráfico (ADR-010). */
+.nia-icono {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.nia-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;
+  z-index: 2147483000;
+
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+
+  border: 1px solid var(--nia-borde);
+  border-radius: var(--nia-radio);
+  background: var(--nia-papel);
+  box-shadow: var(--nia-sombra);
+}
+
+.nia-panel h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.nia-panel p {
+  margin: 0 0 8px;
+  color: var(--nia-tinta-suave);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.nia-panel code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--nia-acento-suave);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nia-lanzador {
+    transition: none;
+  }
+}

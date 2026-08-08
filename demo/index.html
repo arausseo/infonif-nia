@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ficha de empresa — Infonif (simulación del ASP Classic)</title>
+
+    <!--
+      CSS deliberadamente agresivo y anticuado: imita lo que hay encima de las
+      plantillas del portal. Si el widget NO estuviera en Shadow DOM, estas
+      reglas se lo comerían (fuente serif, botones rojos, box-sizing heredado).
+      Que el widget se vea intacto es la prueba de la Fase 0.
+    -->
+    <style>
+      * {
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      body {
+        margin: 0;
+        padding: 0 0 80px;
+        background: #f2f3f5;
+        color: #23272f;
+      }
+      button {
+        background: #c62828 !important;
+        color: #fff;
+        border: 2px ridge #8e0000;
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      svg {
+        opacity: 0.2;
+      }
+      h2 {
+        font-size: 28px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+      }
+      .cabecera {
+        background: #003a70;
+        color: #fff;
+        padding: 14px 28px;
+      }
+      .contenido {
+        max-width: 860px;
+        margin: 24px auto;
+        background: #fff;
+        border: 1px solid #ccd2da;
+        padding: 24px 28px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      td,
+      th {
+        border: 1px solid #dde1e7;
+        padding: 7px 10px;
+        text-align: left;
+        font-size: 14px;
+      }
+      th {
+        background: #eef1f5;
+        width: 34%;
+      }
+      .aviso {
+        margin-top: 20px;
+        padding: 10px 12px;
+        background: #fff8e1;
+        border-left: 4px solid #f2b705;
+        font-size: 13px;
+      }
+    </style>
+
+    <!--
+      En el portal real esto lo genera el ASP (CONTRATOS §5):
+
+        <%
+        Set http = Server.CreateObject("MSXML2.ServerXMLHTTP.6.0")
+        http.open "POST", "https://nia.infonif.es/internal/mint", False
+        http.setRequestHeader "X-Shared-Secret", Application("AGENT_SECRET")
+        http.send "{""usuarioId"":""" & Session("UserID") & """,...}"
+        token = http.responseText
+        %>
+
+      Aquí no hay token: la demo arranca en modo anónimo hasta que exista
+      POST /internal/mint (Fase 4 del PLAN).
+    -->
+    <script>
+      window.__INFONIF_AGENT__ = {
+        contexto: {
+          tipo: "ficha",
+          nif: "A46000001",
+          razonSocial: "SUPERMERCADOS TURIA SA",
+        },
+        apiBase: "http://localhost:3000",
+      };
+    </script>
+  </head>
+
+  <body>
+    <div class="cabecera">
+      <strong>INFONIF</strong> · Información mercantil de empresas
+    </div>
+
+    <div class="contenido">
+      <h2>Supermercados Turia SA</h2>
+      <p>
+        <em
+          >Datos sintéticos. Ninguna empresa real aparece en los fixtures del
+          proyecto.</em
+        >
+      </p>
+
+      <table>
+        <tr>
+          <th>NIF</th>
+          <td>A46000001</td>
+        </tr>
+        <tr>
+          <th>Domicilio</th>
+          <td>Paterna (Valencia)</td>
+        </tr>
+        <tr>
+          <th>Actividad (CNAE)</th>
+          <td>4711 — Comercio al por menor con predominio en productos alimenticios</td>
+        </tr>
+        <tr>
+          <th>Forma jurídica</th>
+          <td>Sociedad Anónima</td>
+        </tr>
+        <tr>
+          <th>Constitución</th>
+          <td>17/03/1981</td>
+        </tr>
+        <tr>
+          <th>Situación</th>
+          <td>Activa</td>
+        </tr>
+        <tr>
+          <th>Ventas (ejercicio 2024)</th>
+          <td>Requiere informe</td>
+        </tr>
+      </table>
+
+      <div class="aviso">
+        Los datos financieros están disponibles en el Informe Comercial y en las Cuentas
+        Anuales depositadas.
+      </div>
+
+      <p style="margin-top: 18px">
+        <button type="button">Comprar informe</button>
+        <button type="button">Añadir a seguimiento</button>
+      </p>
+    </div>
+
+    <script type="module" src="/src/cargar.ts"></script>
+  </body>
+</html>

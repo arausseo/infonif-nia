@@ -1,0 +1,112 @@
+{
+  "_fuente": "Precios públicos observados en infonif.economia3.com (agosto 2026).",
+  "_supuestos_a_confirmar": [
+    "Los precios unitarios de los cuatro informes son los observados y se dan por buenos.",
+    "Los PACKS y sus descuentos NO están confirmados: los importes de abajo son una hipótesis de trabajo para el demo.",
+    "Los TRAMOS de precio por registro de listado (0,30 / 0,15 / 0,10 €) están confirmados en importe pero NO en sus umbrales. Los umbrales de abajo son una hipótesis.",
+    "La cuota mensual del plan Premium (400 consultas) está en CLAUDE.md; su precio no."
+  ],
+  "moneda": "EUR",
+  "ivaIncluido": false,
+
+  "informes": [
+    {
+      "sku": "RAI",
+      "nombre": "Consulta RAI",
+      "precio": 6.0,
+      "unidad": "consulta",
+      "descripcion": "Comprobación del Registro de Aceptaciones Impagadas para un NIF concreto. Dice si la empresa figura con impagados registrados; no valora su solvencia.",
+      "entrega": "inmediata"
+    },
+    {
+      "sku": "INFORME_COMERCIAL",
+      "nombre": "Informe Comercial",
+      "precio": 15.0,
+      "unidad": "informe",
+      "descripcion": "Identificación, actividad, administradores, vinculaciones y evolución de magnitudes de los últimos ejercicios depositados.",
+      "entrega": "inmediata"
+    },
+    {
+      "sku": "INFORME_RIESGO",
+      "nombre": "Informe de Riesgo",
+      "precio": 30.0,
+      "unidad": "informe",
+      "descripcion": "Informe Comercial más scoring, límite de crédito recomendado y alertas. Es el producto que emite la recomendación de crédito; el agente nunca la emite por su cuenta.",
+      "entrega": "inmediata"
+    },
+    {
+      "sku": "CUENTAS_ANUALES",
+      "nombre": "Cuentas Anuales",
+      "precio": 10.0,
+      "unidad": "ejercicio",
+      "descripcion": "Cuentas depositadas en el Registro Mercantil de un ejercicio concreto, tal cual fueron presentadas.",
+      "entrega": "inmediata"
+    }
+  ],
+
+  "packs": [
+    {
+      "sku": "PACK_RIESGO_10",
+      "skuBase": "INFORME_RIESGO",
+      "nombre": "Bono 10 Informes de Riesgo",
+      "unidades": 10,
+      "precio": 240.0,
+      "precioUnitarioEfectivo": 24.0,
+      "caduca": false,
+      "_supuesto": true
+    },
+    {
+      "sku": "PACK_RIESGO_25",
+      "skuBase": "INFORME_RIESGO",
+      "nombre": "Bono 25 Informes de Riesgo",
+      "unidades": 25,
+      "precio": 525.0,
+      "precioUnitarioEfectivo": 21.0,
+      "caduca": false,
+      "_supuesto": true
+    },
+    {
+      "sku": "PACK_COMERCIAL_10",
+      "skuBase": "INFORME_COMERCIAL",
+      "nombre": "Bono 10 Informes Comerciales",
+      "unidades": 10,
+      "precio": 120.0,
+      "precioUnitarioEfectivo": 12.0,
+      "caduca": false,
+      "_supuesto": true
+    },
+    {
+      "sku": "PACK_RAI_25",
+      "skuBase": "RAI",
+      "nombre": "Bono 25 consultas RAI",
+      "unidades": 25,
+      "precio": 112.5,
+      "precioUnitarioEfectivo": 4.5,
+      "caduca": false,
+      "_supuesto": true
+    }
+  ],
+
+  "listados": {
+    "sku": "LISTADO_SEGMENTADO",
+    "nombre": "Listado segmentado",
+    "descripcion": "Descarga en Excel/CSV del conjunto de empresas que cumplen los criterios. La vista previa en el chat se limita a 5 filas por el aviso legal del sitio.",
+    "minimoRegistros": 50,
+    "tramos": [
+      { "desde": 1, "hasta": 1000, "precioPorRegistro": 0.3 },
+      { "desde": 1001, "hasta": 5000, "precioPorRegistro": 0.15 },
+      { "desde": 5001, "hasta": null, "precioPorRegistro": 0.1 }
+    ],
+    "_supuesto_umbrales": "1.000 y 5.000 registros son hipótesis. Confirmar con Infonif antes del demo: cotizar mal es facturar mal."
+  },
+
+  "planes": [
+    {
+      "sku": "PLAN_PREMIUM",
+      "nombre": "Premium",
+      "consultasMensuales": 400,
+      "descripcion": "Cuota mensual con 400 consultas incluidas. Las consultas no consumidas no se acumulan.",
+      "_supuesto_precio": true
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "nia",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Nia — agente conversacional para Infonif",
+  "type": "module",
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm run embeddings && pnpm -r build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "embeddings": "pnpm --filter @nia/semantica run embeddings",
+    "fixtures": "pnpm --filter @nia/api run fixtures",
+    "sembrar": "pnpm --filter @nia/api run sembrar",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "servicios:arriba": "docker compose up -d",
+    "servicios:abajo": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.5"
+  }
+}

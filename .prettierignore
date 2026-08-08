@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+packages/api/src/datos/fixtures/empresas.json
+packages/semantica/artefactos/
