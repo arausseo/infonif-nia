@@ -1,0 +1,25 @@
+{
+  "codigosPostales": [],
+  "cif": [],
+  "comunidades": [],
+  "Provincias": ["Aragón|Teruel"],
+  "Localidades": [],
+  "antiguedad": ["rango.2"],
+  "razonSocial": [],
+  "auditores": [],
+  "empleados": [],
+  "cuentasDisponibles": [],
+  "TipoCuentas": [],
+  "sector_actividad": [],
+  "cargo": [],
+  "vinculaciones": [],
+  "balance": [],
+  "perdidas": [],
+  "ratios": [],
+  "estado": [],
+  "filtros": [
+    { "Provincias": ["Aragón|Teruel"] },
+    { "Provincias": ["Aragón|Teruel"], "antiguedad": ["rango.2"] }
+  ],
+  "campos_requeridos": ["Email"]
+}

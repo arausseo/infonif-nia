@@ -1,0 +1,271 @@
+[
+  {
+    "name": "CIF",
+    "group": "contacto",
+    "label": "CIF",
+    "price": 0.02
+  },
+  {
+    "name": "RazonSocial",
+    "group": "contacto",
+    "label": "Razón social",
+    "price": 0.02
+  },
+  {
+    "name": "Direccion",
+    "group": "contacto",
+    "label": "Dirección",
+    "price": 0.02
+  },
+  {
+    "name": "Telefono",
+    "group": "contacto",
+    "label": "Teléfono",
+    "price": 0.05,
+    "isNew": true,
+    "requiredFilter": true
+  },
+  {
+    "name": "Email",
+    "group": "contacto",
+    "label": "Email",
+    "price": 0.05,
+    "isNew": true,
+    "requiredFilter": true
+  },
+  {
+    "name": "CargosDisponibles",
+    "group": "contacto",
+    "label": "Cargo - Incluye el cargo prioritario de la empresa",
+    "label2": "Cargo",
+    "price": 0.08,
+    "isNew": true,
+    "requiredFilter": true
+  },
+  {
+    "name": "Web",
+    "group": "contacto",
+    "label": "Web",
+    "price": 0.03,
+    "isNew": true,
+    "requiredFilter": true
+  },
+  {
+    "name": "empleados",
+    "group": "comerciales",
+    "jsonPath": "$.UltimaCuentaAnual.SumTotalEmpleados",
+    "label": "No. de empleados",
+    "price": 0.02
+  },
+  {
+    "name": "cnae",
+    "group": "comerciales",
+    "label": "CNAE",
+    "jsonPath": "$.CnaeInfo.Cnae3_text",
+    "price": 0.02
+  },
+  {
+    "name": "IndustriaDescripcion",
+    "group": "comerciales",
+    "label": "Sector Infonif",
+    "price": 0.02
+  },
+  {
+    "name": "FechaConstitucion",
+    "group": "comerciales",
+    "label": "Fecha de Constitución",
+    "price": 0.02
+  },
+  {
+    "name": "99053",
+    "partida": "99053",
+    "tipoPartida": "Perdida",
+    "group": "financieros",
+    "label": "Ventas",
+    "price": 0.04
+  },
+  {
+    "name": "99016",
+    "partida": "99016",
+    "tipoPartida": "Perdida",
+    "group": "financieros",
+    "label": "EBITDA",
+    "price": 0.05
+  },
+  {
+    "name": "49500",
+    "partida": "49500",
+    "tipoPartida": "Perdida",
+    "group": "financieros",
+    "label": "Resultado del ejercicio",
+    "price": 0.05
+  },
+  {
+    "name": "11000",
+    "partida": "11000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Activo no corriente",
+    "price": 0.04
+  },
+  {
+    "name": "12000",
+    "partida": "12000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Activo corriente",
+    "price": 0.04
+  },
+  {
+    "name": "10000",
+    "partida": "10000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Total activo",
+    "price": 0.04
+  },
+  {
+    "name": "20000",
+    "partida": "20000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Patrimonio neto",
+    "price": 0.04
+  },
+  {
+    "name": "31000",
+    "partida": "31000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Pasivo no corriente",
+    "price": 0.04
+  },
+  {
+    "name": "32000",
+    "partida": "32000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Pasivo corriente",
+    "price": 0.04
+  },
+  {
+    "name": "30000",
+    "partida": "30000",
+    "tipoPartida": "InformacionFinanciera",
+    "group": "financieros",
+    "label": "Total pasivo y patrimonio neto",
+    "price": 0.04
+  },
+  {
+    "name": "99024",
+    "partida": "99024",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Fondo de maniobra",
+    "price": 0.05
+  },
+  {
+    "name": "99026",
+    "partida": "99026",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "ROA",
+    "unit": "%",
+    "price": 0.05
+  },
+  {
+    "name": "99025",
+    "partida": "99025",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "ROE",
+    "unit": "%",
+    "price": 0.05
+  },
+  {
+    "name": "99033",
+    "partida": "99033",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "ROS",
+    "unit": "%",
+    "price": 0.05
+  },
+  {
+    "name": "99012",
+    "partida": "99012",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Periodo medio de cobro (PMC)",
+    "unit": "días",
+    "price": 0.05
+  },
+  {
+    "name": "99013",
+    "partida": "99013",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Periodo medio de pago (PMP)",
+    "unit": "días",
+    "price": 0.05
+  },
+  {
+    "name": "99022",
+    "partida": "99022",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Apalancamiento",
+    "price": 0.05
+  },
+  {
+    "name": "99050",
+    "partida": "99050",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Deuda financiera neta / EBITDA",
+    "price": 0.05
+  },
+  {
+    "name": "99051",
+    "partida": "99051",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Deuda financiera neta / Fondos propios",
+    "price": 0.05
+  },
+  {
+    "name": "99052",
+    "partida": "99052",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Necesidades Operativas de fondos",
+    "price": 0.05
+  },
+  {
+    "name": "99035",
+    "partida": "99035",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Ratio de liquidez",
+    "unit": "No. de veces",
+    "price": 0.05
+  },
+  {
+    "name": "99036",
+    "partida": "99036",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Ratio de solvencia",
+    "unit": "No. de veces",
+    "price": 0.05
+  },
+  {
+    "name": "99048",
+    "partida": "99048",
+    "tipoPartida": "Ratios",
+    "group": "financieros",
+    "label": "Ratio de tesoreria o prueba Ácida",
+    "unit": "No. de veces",
+    "price": 0.05
+  }
+]
