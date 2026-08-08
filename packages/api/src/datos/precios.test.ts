@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  calcularCoste,
   campoPorNombre,
   catalogoCampos,
   cotizarListado,
   registrosConCampo,
 } from "./precios.js";
+import { DERECHOS_ANONIMO, interpretarPlan } from "./derechos.js";
 import type { CampoDisponible } from "./infonif/tipos.js";
 import respuestaReal from "./fixtures/infonif/ejemplo-respuesta.json";
 
@@ -155,5 +157,63 @@ describe("cotizarListado", () => {
     const suma = p.lineas.reduce((s, l) => s + l.importe, 0);
     expect(p.baseImponible).toBeCloseTo(suma, 2);
     expect(p.total).toBeCloseTo(p.baseImponible * 1.21, 2);
+  });
+});
+
+describe("calcularCoste: dos monedas que no se convierten entre sí", () => {
+  const CAMPOS = ["CIF", "RazonSocial", "Direccion", "Telefono", "Email"];
+  const AHORA = Date.parse("2026-08-08T12:00:00Z");
+  const CON_PLAN = interpretarPlan(
+    133627,
+    {
+      iD_usuario: 133627,
+      numRegistrosConsumidos: 919_398,
+      numRegistrosMensuales: 9_000_000,
+      fechaFinContrato: "2026-11-16T00:00:00",
+    },
+    AHORA,
+  );
+  const SIN_PLAN = interpretarPlan(142583, undefined, AHORA);
+
+  it("sin plan se paga en euros y los campos importan", () => {
+    const coste = calcularCoste(SIN_PLAN, 81, CAMPOS, DISPONIBLES);
+    expect(coste.formaDePago).toBe("euros");
+    expect(coste.enEuros.total).toBeGreaterThan(0);
+    expect(coste.enEuros.lineas).toHaveLength(5);
+  });
+
+  it("con plan se consume saldo y los campos NO importan", () => {
+    // Su portal: 50 empresas con cinco campos descuentan 50 registros, no 207.
+    const conCinco = calcularCoste(CON_PLAN, 50, CAMPOS, DISPONIBLES);
+    const conUno = calcularCoste(CON_PLAN, 50, ["CIF"], DISPONIBLES);
+
+    expect(conCinco.formaDePago).toBe("saldo");
+    expect(conCinco.enSaldo.registros).toBe(50);
+    expect(conCinco.enSaldo.registros).toBe(conUno.enSaldo.registros);
+    expect(conCinco.enSaldo.disponiblesDespues).toBe(8_080_552);
+
+    // El importe en euros sí cambia, pero a este usuario no se le cobra.
+    expect(conCinco.enEuros.total).toBeGreaterThan(conUno.enEuros.total);
+  });
+
+  it("el anónimo paga en euros", () => {
+    expect(calcularCoste(DERECHOS_ANONIMO, 10, CAMPOS, DISPONIBLES).formaDePago).toBe(
+      "euros",
+    );
+  });
+
+  it("un plan sin saldo suficiente vuelve a euros y dice cuánto falta", () => {
+    const coste = calcularCoste(CON_PLAN, 9_000_000, CAMPOS, DISPONIBLES);
+    // Sigue teniendo plan, así que la forma de pago es saldo…
+    expect(coste.formaDePago).toBe("saldo");
+    // …pero no le llega, y hay que decírselo antes de que pulse.
+    expect(coste.enSaldo.alcanza).toBe(false);
+    expect(coste.enSaldo.faltan).toBe(919_398);
+  });
+
+  it("siempre calcula las dos, para poder responder «¿y si no gastara saldo?»", () => {
+    const coste = calcularCoste(CON_PLAN, 81, CAMPOS, DISPONIBLES);
+    expect(coste.enEuros.baseImponible).toBeGreaterThan(0);
+    expect(coste.enSaldo.registros).toBe(81);
   });
 });

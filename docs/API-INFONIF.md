@@ -57,10 +57,10 @@ Consecuencias, ya aplicadas:
 
 - `datos/fixtures/skus.json` ya no lleva tramos ni umbrales inventados.
 - **No existe mínimo de registros.** El `minimoRegistros: 50` que puse era mío.
-- El cliente paga **en euros o con créditos** comprados en Infonif. `precios.ts`
-  tiene que devolver las dos cosas: importe y equivalente en créditos.
 
-`datos/precios.ts` ya se puede escribir.
+**Este precio en euros solo aplica a quien NO tiene plan.** Quien tiene plan
+consume registros de su saldo, y ahí el número de campos da igual: ver §4. Son
+dos monedas distintas y no se convierten entre sí.
 
 ### `requiredFilter`
 
@@ -509,12 +509,62 @@ aplana a array de nombres justo antes de enviar (`Buscador.vue:505`).
    despacha `setCostoTotal`. `datos/precios.ts` será fuente única, como manda
    CLAUDE.md.
 
-### Plan de registros
+### Plan de registros: la segunda moneda
 
-`planBBDD` trae `numRegistrosMensuales` y `numRegistrosConsumidos`. Con plan, la
-descarga consume saldo y no pasa por el TPV (`descargaPorPaquete`,
-`VisualizarResultados.vue:1845`); sin plan, se paga. La descarga marca
-`TipoDescarga: 2` con plan y `1` sin plan.
+```
+GET /buscador/planBBDD?idusuario=133627     (Idusuario también vale)
+```
+
+Verificado con los dos usuarios de prueba el 08/08/2026:
+
+| Usuario           | Respuesta                                                                                                                                |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 133627 (con plan) | `200` · `{"iD_usuario":133627,"numRegistrosConsumidos":919398,"numRegistrosMensuales":9000000,"fechaFinContrato":"2026-11-16T00:00:00"}` |
+| 142583 (sin plan) | **`204` sin cuerpo** — no un JSON con nulos                                                                                              |
+
+Dos avisos sobre esos campos:
+
+- **`numRegistrosMensuales` no es mensual.** Es el total contratado: su propio
+  portal lo rotula «Registros contratados: 9.000.000», y viene con fecha de fin
+  de contrato. Tratarlo como cupo mensual sería multiplicar el saldo por doce.
+- **`fechaFinContrato`**: pasada esa fecha, el plan no debería valer aunque
+  queden registros.
+
+#### Un plan se consume en REGISTROS, y los campos dan igual
+
+Esto es lo que más cambia respecto a §1. Con plan **no se cotiza un importe**: se
+descuenta un registro por empresa, se lleve el usuario una columna o quince.
+
+Confirmado en las tres capas del frontend:
+
+| Dónde                           | Qué dice                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `VisualizarResultados.vue:1846` | `consumo = this.selected_companies` — el nº de empresas, no los campos      |
+| `VisualizarResultados.vue:1848` | `nuevoSaldo = contratados − consumidos − selected_companies`                |
+| `FieldsSelected.vue:4`          | el importe en euros se muestra `v-if="… && !tiene_plan"`                    |
+| `VisualizarResultados.vue:88`   | el bloque de «Coste total + IVA» también va bajo `!tienePlanBBDD`           |
+| `VisualizarResultados.vue:104`  | con plan, en su lugar sale «Registros Filtrados: N» y el botón de descargar |
+| `Buscador.vue:611`              | comprueba `disponibles < selected_companies` antes de dejar avanzar         |
+
+Y su propio diálogo lo dice con todas las letras: con 50 empresas y cinco campos
+seleccionados (CIF, razón social, dirección, teléfono, email), avisa de que
+«vas a consumir **50** registros», no 207 —que es lo que suman los campos—.
+
+O sea que hay **dos monedas que no se convierten entre sí**:
+
+```
+sin plan → euros,     y el importe depende de los campos
+con plan → registros, y el número de campos no entra en la cuenta
+```
+
+`datos/precios.ts` calcula siempre las dos y marca cuál aplica
+(`formaDePago: "euros" | "saldo"`), porque un usuario con plan puede querer saber
+lo que costaría sin gastarlo. Pero **a quien tiene saldo se le habla de
+registros, no de dinero**, igual que hace su portal.
+
+`tienePlanBBDD` es `planBBDD != null && planBBDD.iD_usuario != null`
+(`VisualizarResultados.vue:979`). La descarga marca `TipoDescarga: 2` con plan y
+`1` sin plan.
 
 Es el mismo modelo de derechos de ADR-008: `derechos.ts` resuelve plan o saldo, y
 la herramienta decide antes de devolver el dato.

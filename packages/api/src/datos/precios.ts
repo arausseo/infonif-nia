@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ErrorValidacion } from "../comun/errores.js";
+import { consumoDeSaldo, type ConsumoSaldo, type Derechos } from "./derechos.js";
 import type { CampoDisponible } from "./infonif/tipos.js";
 // Se importa, no se lee de disco: así viaja dentro del bundle y no depende de
 // dónde quede el fichero al desplegar.
@@ -164,4 +165,50 @@ export function cotizarListado(
 /** A céntimos. Sin esto, sumar 0,02 × 81 arrastra error binario a la factura. */
 function redondear(importe: number): number {
   return Math.round(importe * 100) / 100;
+}
+
+// ─── Qué le cuesta a ESTE usuario ─────────────────────────────────────────────
+
+export interface CosteListado {
+  empresas: number;
+  /** `saldo` si el usuario tiene plan con registros disponibles; si no, `euros`. */
+  formaDePago: "euros" | "saldo";
+  /**
+   * Lo que costaría pagando: por campo y por registro, más IVA. Se calcula
+   * siempre, también con plan, porque el usuario puede querer saberlo.
+   */
+  enEuros: Presupuesto;
+  /** Lo que costaría al saldo. Solo tiene sentido con plan. */
+  enSaldo: ConsumoSaldo;
+}
+
+/**
+ * Traduce un segmento a lo que le cuesta a un usuario concreto.
+ *
+ * Son dos monedas distintas y no se convierten entre sí:
+ *
+ * - **Sin plan** se paga en euros, y el importe depende de los campos: cada uno
+ *   tiene su precio y se multiplica por los registros que lo traen.
+ * - **Con plan** se consume saldo, y **el número de campos da igual**. Cincuenta
+ *   empresas cuestan cincuenta registros tanto si te llevas una columna como si
+ *   te llevas cinco. Verificado en su portal y en su frontend
+ *   (`descargaPorPaquete` descuenta `selected_companies`, no los campos).
+ *
+ * Por eso el portal ni siquiera enseña el importe en euros a quien tiene plan
+ * (`FieldsSelected.vue:4`). Nia hará lo mismo: a quien tiene saldo se le habla
+ * de registros, no de dinero.
+ */
+export function calcularCoste(
+  derechos: Derechos,
+  empresas: number,
+  camposPedidos: readonly string[],
+  disponibles: readonly CampoDisponible[],
+  opciones: { tipoCuenta?: string; ejercicios?: readonly string[] } = {},
+): CosteListado {
+  return {
+    empresas,
+    formaDePago: derechos.puedeConsumirSaldo ? "saldo" : "euros",
+    enEuros: cotizarListado(camposPedidos, disponibles, empresas, opciones),
+    enSaldo: consumoDeSaldo(derechos, empresas),
+  };
 }

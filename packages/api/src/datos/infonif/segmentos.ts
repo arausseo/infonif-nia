@@ -1,5 +1,6 @@
 import { ErrorInfonif } from "../../comun/errores.js";
-import { cotizarListado, type Presupuesto } from "../precios.js";
+import { DERECHOS_ANONIMO, type Derechos } from "../derechos.js";
+import { calcularCoste, type CosteListado } from "../precios.js";
 import { infonif } from "./cliente.js";
 import { armar, compilar, type FiltroSegmento, type Paso } from "./filtros.js";
 import { obtenerEjerciciosRecientes, resolverProvincias } from "./resumen.js";
@@ -112,16 +113,23 @@ export async function contarSegmento(filtro: FiltroSegmento): Promise<Segmento> 
   return segmento;
 }
 
-/** Cuenta y cotiza en una sola pasada. Es lo que consume `construir_segmento`. */
+/**
+ * Cuenta y cotiza en una sola pasada. Es lo que consume `construir_segmento`.
+ *
+ * El coste depende del perfil: con plan se consume saldo —un registro por
+ * empresa, den igual los campos— y sin plan se paga en euros por campo.
+ */
 export async function cotizarSegmento(
   filtro: FiltroSegmento,
   campos: readonly string[],
-): Promise<{ segmento: Segmento; presupuesto: Presupuesto }> {
+  derechos: Derechos = DERECHOS_ANONIMO,
+): Promise<{ segmento: Segmento; coste: CosteListado }> {
   const segmento = await contarSegmento(filtro);
-  const presupuesto = cotizarListado(
+  const coste = calcularCoste(
+    derechos,
+    segmento.cantidad,
     campos,
     segmento.camposDisponibles,
-    segmento.cantidad,
   );
-  return { segmento, presupuesto };
+  return { segmento, coste };
 }

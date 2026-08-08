@@ -90,12 +90,22 @@ export const RespuestaAutocomplete = z.object({
   empresas: z.array(EmpresaAutocomplete),
 });
 
-/** `GET /buscador/planBBDD?idusuario=`. Forma tomada del frontend Vue. */
+/**
+ * `GET /buscador/planBBDD?idusuario=`, verificado en vivo el 08/08/2026.
+ *
+ * Solo devuelve cuerpo si el usuario tiene plan de registros contratado. Si no
+ * lo tiene, responde **204 sin cuerpo** — no un JSON con nulos.
+ *
+ * Ojo con `numRegistrosMensuales`: el nombre engaña. No es un cupo mensual, es
+ * el total contratado —su propio portal lo rotula «Registros contratados»— y va
+ * acompañado de una fecha de fin de contrato.
+ */
 export const PlanBBDD = z
   .object({
     iD_usuario: z.number().int().nullable().optional(),
     numRegistrosMensuales: z.number().nullable().optional(),
     numRegistrosConsumidos: z.number().nullable().optional(),
+    fechaFinContrato: z.string().nullable().optional(),
   })
   .passthrough();
 
