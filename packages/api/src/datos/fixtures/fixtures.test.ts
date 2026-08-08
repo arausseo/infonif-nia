@@ -96,16 +96,12 @@ const CatalogoSkus = z.object({
       }),
     )
     .nonempty(),
+  ivaPorcentaje: z.literal(21),
+  formasDePago: z.array(z.enum(["euros", "creditos"])).nonempty(),
   listados: z.object({
-    tramos: z
-      .array(
-        z.object({
-          desde: z.number().int().positive(),
-          hasta: z.number().int().positive().nullable(),
-          precioPorRegistro: z.number().positive(),
-        }),
-      )
-      .nonempty(),
+    modeloPrecio: z.literal("por-campo-y-registro"),
+    catalogoCampos: z.string(),
+    minimoRegistros: z.null(),
   }),
 });
 
@@ -129,16 +125,73 @@ describe("fixture de SKU", () => {
     }
   });
 
-  it("los tramos del listado son contiguos y decrecientes", () => {
-    const tramos = skus.listados.tramos;
-    expect(tramos.map((t) => t.precioPorRegistro)).toEqual([0.3, 0.15, 0.1]);
+  it("el listado no tiene tramos por volumen ni mínimo de registros", () => {
+    // El cliente confirmó (08/08/2026) que los tramos 0,30/0,15/0,10 de CLAUDE.md
+    // son referenciales. El precio real es por campo y por registro, y no hay
+    // mínimo. Este test existe para que nadie los reintroduzca de memoria.
+    expect(skus.listados).not.toHaveProperty("tramos");
+    expect(skus.listados.minimoRegistros).toBeNull();
+    expect(skus.listados.modeloPrecio).toBe("por-campo-y-registro");
+  });
+});
 
-    for (let i = 1; i < tramos.length; i++) {
-      const anterior = tramos[i - 1]!;
-      const actual = tramos[i]!;
-      expect(anterior.hasta).not.toBeNull();
-      expect(actual.desde).toBe(anterior.hasta! + 1);
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CampoComprable = z.object({
+  name: z.string().min(1),
+  group: z.enum(["contacto", "comerciales", "financieros"]),
+  label: z.string().min(1),
+  label2: z.string().optional(),
+  price: z.number().positive(),
+  isNew: z.boolean().optional(),
+  requiredFilter: z.boolean().optional(),
+  jsonPath: z.string().optional(),
+  partida: z.string().optional(),
+  tipoPartida: z.enum(["Perdida", "InformacionFinanciera", "Ratios"]).optional(),
+  unit: z.string().optional(),
+});
+
+const campos = z.array(CampoComprable).parse(leerJson("infonif/campos-comprables.json"));
+
+describe("catálogo de campos comprables de Infonif", () => {
+  it("es la copia congelada de fields.json, con sus 34 campos", () => {
+    expect(campos).toHaveLength(34);
+    expect(new Set(campos.map((c) => c.name)).size).toBe(campos.length);
+  });
+
+  it("todo campo financiero declara partida y tipoPartida", () => {
+    for (const campo of campos.filter((c) => c.group === "financieros")) {
+      expect(campo.partida, `${campo.name} sin partida`).toBe(campo.name);
+      expect(campo.tipoPartida, `${campo.name} sin tipoPartida`).toBeDefined();
     }
-    expect(tramos[tramos.length - 1]!.hasta).toBeNull();
+  });
+
+  it("los campos de contacto sensibles son los que llevan requiredFilter", () => {
+    const conFiltro = campos.filter((c) => c.requiredFilter).map((c) => c.name);
+    expect(conFiltro.sort()).toEqual(
+      ["CargosDisponibles", "Email", "Telefono", "Web"].sort(),
+    );
+  });
+
+  it("reproduce el importe de la captura del cliente", () => {
+    // 81 empresas con CIF, razón social, dirección y email; 79 con ventas.
+    const precio = (nombre: string) => {
+      const campo = campos.find((c) => c.name === nombre);
+      expect(campo, `campo ${nombre} ausente`).toBeDefined();
+      return campo!.price;
+    };
+    const disponibles: Record<string, number> = {
+      CIF: 81,
+      RazonSocial: 81,
+      Direccion: 81,
+      Email: 81,
+      "99053": 79,
+    };
+    const coste = Object.entries(disponibles).reduce(
+      (suma, [nombre, registros]) => suma + precio(nombre) * registros,
+      0,
+    );
+    expect(coste).toBeCloseTo(12.07, 2);
+    expect(coste * 1.21).toBeCloseTo(14.6, 2);
   });
 });

@@ -3,11 +3,13 @@
   "_supuestos_a_confirmar": [
     "Los precios unitarios de los cuatro informes son los observados y se dan por buenos.",
     "Los PACKS y sus descuentos NO están confirmados: los importes de abajo son una hipótesis de trabajo para el demo.",
-    "Los TRAMOS de precio por registro de listado (0,30 / 0,15 / 0,10 €) están confirmados en importe pero NO en sus umbrales. Los umbrales de abajo son una hipótesis.",
     "La cuota mensual del plan Premium (400 consultas) está en CLAUDE.md; su precio no."
   ],
+  "_corregido_2026_08_08": "Los tramos 0,30/0,15/0,10 € por registro que estaban aquí eran una lectura equivocada: el cliente confirma que ese modelo de CLAUDE.md es solo referencial. El precio real del listado es por campo y por registro (ver docs/API-INFONIF.md §1). Tampoco existe mínimo de registros.",
   "moneda": "EUR",
   "ivaIncluido": false,
+  "ivaPorcentaje": 21,
+  "formasDePago": ["euros", "creditos"],
 
   "informes": [
     {
@@ -90,14 +92,12 @@
   "listados": {
     "sku": "LISTADO_SEGMENTADO",
     "nombre": "Listado segmentado",
-    "descripcion": "Descarga en Excel/CSV del conjunto de empresas que cumplen los criterios. La vista previa en el chat se limita a 5 filas por el aviso legal del sitio.",
-    "minimoRegistros": 50,
-    "tramos": [
-      { "desde": 1, "hasta": 1000, "precioPorRegistro": 0.3 },
-      { "desde": 1001, "hasta": 5000, "precioPorRegistro": 0.15 },
-      { "desde": 5001, "hasta": null, "precioPorRegistro": 0.1 }
-    ],
-    "_supuesto_umbrales": "1.000 y 5.000 registros son hipótesis. Confirmar con Infonif antes del demo: cotizar mal es facturar mal."
+    "descripcion": "Descarga en Excel del conjunto de empresas que cumplen los criterios. La vista previa en el chat se limita a 5 filas por el aviso legal del sitio.",
+    "modeloPrecio": "por-campo-y-registro",
+    "catalogoCampos": "infonif/campos-comprables.json",
+    "minimoRegistros": null,
+    "formula": "coste = Σ (precio_campo × registros_que_tienen_ese_campo); total = coste × 1,21",
+    "_donde": "La implementación de referencia está en el frontend Vue (FieldsSelected.vue). La nuestra irá en datos/precios.ts, en servidor, porque el agente no puede fiarse de un precio calculado en el cliente."
   },
 
   "planes": [

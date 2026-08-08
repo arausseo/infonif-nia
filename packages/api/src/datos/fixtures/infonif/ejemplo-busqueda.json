@@ -1,0 +1,76 @@
+{
+  "_origen": "GET https://infonif.economia3.com/api/buscador/buscar.asp?q=merca",
+  "_nota": "Muestra de 4 de los 25 resultados aportados por el cliente (08/08/2026). El endpoint es interno: desde fuera devuelve 403.",
+  "_por_que_estos_cuatro": [
+    "MERCADONA: es el NIF que cita el flujo A del guion de demo.",
+    "MERCAOLEO: trae logo, para ver el par l/lb.",
+    "GROUP REINA: sin logo, l y lb a null.",
+    "RENFE MERCANCIAS x2: mismo NIF, dos razones sociales, ea=1 y ea=0. Es el caso que obliga a deduplicar."
+  ],
+  "empresas": [
+    {
+      "nif": "A46103834",
+      "rs": "MERCADONA SA",
+      "nifn": "46103834",
+      "url": "mercadona-sa",
+      "s": "Minoristas de alimentos / medicamentos",
+      "p": "VALENCIA/VALÈNCIA",
+      "r": "VALENCIA",
+      "l": "https://infonif.economia3.com/images/logo-empresas/80x30/nif-46103834_80x30.gif",
+      "lb": "https://infonif.economia3.com/images/logo-empresas/nif-46103834.gif",
+      "ea": 1,
+      "pts": 19,
+      "dir": "C/ ALFONSO ROIG ALFONSO S/N",
+      "loc": "ALBALAT DELS SORELLS",
+      "cp": "46135"
+    },
+    {
+      "nif": "A86868114",
+      "rs": "RENFE MERCANCIAS SOCIEDAD MERCANTIL ESTATAL SA",
+      "nifn": "86868114",
+      "url": "renfe-mercancias-sociedad-mercantil-estatal-sa",
+      "s": "Transporte terrestre",
+      "p": "MADRID",
+      "r": "MADRID",
+      "l": "https://infonif.economia3.com/images/logo-empresas/80x30/nif-86868114_80x30.gif",
+      "lb": "https://infonif.economia3.com/images/logo-empresas/nif-86868114.gif",
+      "ea": 1,
+      "pts": 18,
+      "dir": "AVDA CIUDAD DE BARCELONA 4",
+      "loc": "MADRID",
+      "cp": "28007"
+    },
+    {
+      "nif": "A86868114",
+      "rs": "RENFE MERCANCIAS SA",
+      "nifn": "86868114",
+      "url": "renfe-mercancias-sociedad-mercantil-estatal-sa",
+      "s": "Transporte terrestre",
+      "p": "MADRID",
+      "r": "MADRID",
+      "l": "https://infonif.economia3.com/images/logo-empresas/80x30/nif-86868114_80x30.gif",
+      "lb": "https://infonif.economia3.com/images/logo-empresas/nif-86868114.gif",
+      "ea": 0,
+      "pts": 18,
+      "dir": "AVDA CIUDAD DE BARCELONA 4",
+      "loc": "MADRID",
+      "cp": "28007"
+    },
+    {
+      "nif": "B05558929",
+      "rs": "GROUP REINA MERCADO GLOBAL SL",
+      "nifn": "05558929",
+      "url": "group-reina-mercado-global-sl",
+      "s": "Minoristas de alimentos / medicamentos",
+      "p": "MURCIA",
+      "r": "MURCIA",
+      "l": null,
+      "lb": null,
+      "ea": 1,
+      "pts": 17,
+      "dir": "PG IND.CAVILA -CL.ENRIQUE LOPEZ BUSTAMANTE 3",
+      "loc": "CARAVACA DE LA CRUZ",
+      "cp": "30400"
+    }
+  ]
+}
