@@ -30,7 +30,10 @@ export interface Derechos {
   registrosContratados?: number;
   registrosConsumidos?: number;
   registrosDisponibles?: number;
-  /** Fin del contrato, en ISO. Pasada esa fecha el plan no vale. */
+  /**
+   * Fin de contrato que devuelve su API, en ISO. **Informativo, no bloquea**:
+   * su página dice que los planes no caducan y su frontend no lo mira.
+   */
   finContrato?: string;
   /** Puede descargar consumiendo saldo en lugar de pagar. */
   puedeConsumirSaldo: boolean;
@@ -41,12 +44,17 @@ export const DERECHOS_ANONIMO: Derechos = {
   puedeConsumirSaldo: false,
 };
 
-/** Traduce la respuesta de su API a nuestros derechos. Pura, para poder probarla. */
-export function interpretarPlan(
-  usuarioId: number,
-  plan: PlanBBDD | undefined,
-  ahora: number = Date.now(),
-): Derechos {
+/**
+ * Traduce la respuesta de su API a nuestros derechos. Pura, para poder probarla.
+ *
+ * **`fechaFinContrato` no bloquea.** Su página de planes dice literalmente
+ * «Nuestros planes NO CADUCAN», y su propio frontend ignora esa fecha por
+ * completo: `tienePlanBBDD` solo mira que venga `iD_usuario`. Denegar por una
+ * fecha que el sistema real no mira dejaría a un cliente con saldo pagado sin
+ * poder gastarlo, que es peor error que el contrario. Se conserva como
+ * información, no como condición.
+ */
+export function interpretarPlan(usuarioId: number, plan: PlanBBDD | undefined): Derechos {
   const sinPlan: Derechos = {
     perfil: "registrado",
     usuarioId,
@@ -60,16 +68,13 @@ export function interpretarPlan(
   const consumidos = plan.numRegistrosConsumidos ?? 0;
   const disponibles = Math.max(0, contratados - consumidos);
 
-  const vencido =
-    plan.fechaFinContrato != null && Date.parse(plan.fechaFinContrato) < ahora;
-
   const derechos: Derechos = {
     perfil: "conPlan",
     usuarioId,
     registrosContratados: contratados,
     registrosConsumidos: consumidos,
     registrosDisponibles: disponibles,
-    puedeConsumirSaldo: disponibles > 0 && !vencido,
+    puedeConsumirSaldo: disponibles > 0,
   };
   if (plan.fechaFinContrato != null) derechos.finContrato = plan.fechaFinContrato;
   return derechos;

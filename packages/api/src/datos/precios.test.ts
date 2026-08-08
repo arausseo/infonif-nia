@@ -4,6 +4,8 @@ import {
   campoPorNombre,
   catalogoCampos,
   cotizarListado,
+  planesDeRegistros,
+  recomendarPlan,
   registrosConCampo,
 } from "./precios.js";
 import { DERECHOS_ANONIMO, interpretarPlan } from "./derechos.js";
@@ -162,18 +164,13 @@ describe("cotizarListado", () => {
 
 describe("calcularCoste: dos monedas que no se convierten entre sí", () => {
   const CAMPOS = ["CIF", "RazonSocial", "Direccion", "Telefono", "Email"];
-  const AHORA = Date.parse("2026-08-08T12:00:00Z");
-  const CON_PLAN = interpretarPlan(
-    133627,
-    {
-      iD_usuario: 133627,
-      numRegistrosConsumidos: 919_398,
-      numRegistrosMensuales: 9_000_000,
-      fechaFinContrato: "2026-11-16T00:00:00",
-    },
-    AHORA,
-  );
-  const SIN_PLAN = interpretarPlan(142583, undefined, AHORA);
+  const CON_PLAN = interpretarPlan(133627, {
+    iD_usuario: 133627,
+    numRegistrosConsumidos: 919_398,
+    numRegistrosMensuales: 9_000_000,
+    fechaFinContrato: "2026-11-16T00:00:00",
+  });
+  const SIN_PLAN = interpretarPlan(142583, undefined);
 
   it("sin plan se paga en euros y los campos importan", () => {
     const coste = calcularCoste(SIN_PLAN, 81, CAMPOS, DISPONIBLES);
@@ -215,5 +212,59 @@ describe("calcularCoste: dos monedas que no se convierten entre sí", () => {
     const coste = calcularCoste(CON_PLAN, 81, CAMPOS, DISPONIBLES);
     expect(coste.enEuros.baseImponible).toBeGreaterThan(0);
     expect(coste.enSaldo.registros).toBe(81);
+  });
+});
+
+describe("recomendarPlan", () => {
+  it("conoce los tres tramos reales de su página", () => {
+    expect(planesDeRegistros().map((p) => [p.registros, p.precio])).toEqual([
+      [1000, 300],
+      [5000, 750],
+      [10000, 1000],
+    ]);
+  });
+
+  it("los tramos son los 0,30 / 0,15 / 0,10 € de CLAUDE.md", () => {
+    // No eran el precio de un listado por registro: son el precio de COMPRAR
+    // registros. El malentendido que arrastré dos días.
+    expect(planesDeRegistros().map((p) => p.precioPorRegistro)).toEqual([0.3, 0.15, 0.1]);
+    for (const plan of planesDeRegistros()) {
+      expect(plan.precio / plan.registros).toBeCloseTo(plan.precioPorRegistro, 4);
+    }
+  });
+
+  it("recomienda el tramo más barato que cubra", () => {
+    expect(recomendarPlan(800, 1000)?.tramo.sku).toBe("PLAN_1000");
+    expect(recomendarPlan(3000, 5000)?.tramo.sku).toBe("PLAN_5000");
+    expect(recomendarPlan(9000, 5000)?.tramo.sku).toBe("PLAN_10000");
+  });
+
+  it("para más de 10.000 combina unidades del tramo más barato por registro", () => {
+    const r = recomendarPlan(25_000, 99_999);
+    expect(r?.tramo.sku).toBe("PLAN_10000");
+    expect(r?.unidades).toBe(3);
+    expect(r?.coste).toBe(3000);
+    expect(r?.registrosSobrantes).toBe(5000);
+  });
+
+  it("NO empuja el plan cuando el listado suelto sale más barato", () => {
+    // El segmento del flujo C: 135 empresas, unos 32 € con IVA. El plan más
+    // pequeño son 300 €. Recomendarlo aquí sería vender de más.
+    const r = recomendarPlan(135, 32.43);
+    expect(r?.tramo.sku).toBe("PLAN_1000");
+    expect(r?.coste).toBe(300);
+    expect(r?.mereceLaPenaParaEsteListado).toBe(false);
+  });
+
+  it("sí lo recomienda cuando de verdad compensa", () => {
+    // 8.000 empresas con muchos campos se van muy por encima de los 1.000 €.
+    const r = recomendarPlan(8000, 4500);
+    expect(r?.tramo.sku).toBe("PLAN_10000");
+    expect(r?.coste).toBe(1000);
+    expect(r?.mereceLaPenaParaEsteListado).toBe(true);
+  });
+
+  it("un segmento vacío no tiene plan que recomendar", () => {
+    expect(recomendarPlan(0, 0)).toBeUndefined();
   });
 });

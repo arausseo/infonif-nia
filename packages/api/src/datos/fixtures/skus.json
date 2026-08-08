@@ -5,11 +5,12 @@
     "Los PACKS y sus descuentos NO están confirmados: los importes de abajo son una hipótesis de trabajo para el demo.",
     "La cuota mensual del plan Premium (400 consultas) está en CLAUDE.md; su precio no."
   ],
-  "_corregido_2026_08_08": "Los tramos 0,30/0,15/0,10 € por registro que estaban aquí eran una lectura equivocada: el cliente confirma que ese modelo de CLAUDE.md es solo referencial. El precio real del listado es por campo y por registro (ver docs/API-INFONIF.md §1). Tampoco existe mínimo de registros.",
+  "_resuelto_2026_08_08": "Los tramos 0,30/0,15/0,10 € de CLAUDE.md sí existen, pero no son lo que yo creí: no es el precio de un listado por registro, es el precio de COMPRAR registros en un plan (ver planesRegistros). Conviven dos modelos: sin plan se paga por campo y por registro; con plan se compran registros por adelantado y cada descarga consume uno por empresa, con todos los campos incluidos.",
   "moneda": "EUR",
   "ivaIncluido": false,
   "ivaPorcentaje": 21,
-  "formasDePago": ["euros", "creditos"],
+  "formasDePago": ["euros", "registros"],
+  "_creditos": "Lo que el cliente llama «créditos» son los registros de un plan de Base de Datos, y solo sirven para este producto. El botón «Recargar» del buscador lleva a /bases-de-datos/, la página de planes.",
 
   "informes": [
     {
@@ -97,7 +98,38 @@
     "catalogoCampos": "infonif/campos-comprables.json",
     "minimoRegistros": null,
     "formula": "coste = Σ (precio_campo × registros_que_tienen_ese_campo); total = coste × 1,21",
-    "_donde": "La implementación de referencia está en el frontend Vue (FieldsSelected.vue). La nuestra irá en datos/precios.ts, en servidor, porque el agente no puede fiarse de un precio calculado en el cliente."
+    "_donde": "La implementación de referencia está en el frontend Vue (FieldsSelected.vue). La nuestra irá en datos/precios.ts, en servidor, porque el agente no puede fiarse de un precio calculado en el cliente.",
+    "_solo_sin_plan": "Este precio solo aplica a quien NO tiene plan. Con plan se consume saldo: un registro por empresa, con todos los campos incluidos."
+  },
+
+  "planesRegistros": {
+    "_fuente": "https://infonif.economia3.com/bases-de-datos/ observada el 08/08/2026",
+    "nombre": "Plan de registros para descargas",
+    "descripcion": "Se compran registros por adelantado. Cada descarga consume un registro por empresa, e incluye todos los datos disponibles de esa empresa: financieros, comerciales y de contacto.",
+    "incluyeTodosLosCampos": true,
+    "caducan": false,
+    "_no_caducan": "La página dice literalmente «Nuestros planes NO CADUCAN». Su API sí devuelve fechaFinContrato, y su propio frontend la ignora por completo. Ver docs/API-INFONIF.md §4.",
+    "tramos": [
+      {
+        "sku": "PLAN_1000",
+        "registros": 1000,
+        "precio": 300.0,
+        "precioPorRegistro": 0.3
+      },
+      {
+        "sku": "PLAN_5000",
+        "registros": 5000,
+        "precio": 750.0,
+        "precioPorRegistro": 0.15,
+        "destacado": true
+      },
+      {
+        "sku": "PLAN_10000",
+        "registros": 10000,
+        "precio": 1000.0,
+        "precioPorRegistro": 0.1
+      }
+    ]
   },
 
   "planes": [

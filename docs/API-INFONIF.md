@@ -22,7 +22,7 @@ Copias congeladas en `packages/api/src/datos/fixtures/infonif/`:
 
 ---
 
-## 1. El precio no son tramos por registro: es por campo y por registro
+## 1. Sin plan: se paga por campo y por registro
 
 `campos-comprables.json` son 34 campos, cada uno con su `price` **por registro**:
 
@@ -47,20 +47,35 @@ Copias congeladas en `packages/api/src/datos/fixtures/infonif/`:
 Rango unitario: 0,02 € (CIF, razón social, dirección, CNAE, empleados, sector,
 fecha de constitución) a 0,08 € (cargo).
 
-### Resuelto: los tramos de CLAUDE.md son referenciales
+### Resuelto: los 0,30/0,15/0,10 son otra cosa
 
-CLAUDE.md registra «listados 0,30/0,15/0,10 € por registro». **El cliente
-confirmó el 08/08/2026 que ese modelo es solo referencial y que el precio real es
-el de aquí**: por campo y por registro, con la fórmula de §4.
+CLAUDE.md registra «listados 0,30/0,15/0,10 € por registro» y yo lo leí como el
+precio de un listado. **No lo es: es el precio de COMPRAR registros de un plan.**
+Está en su página de planes, `/bases-de-datos/`:
 
-Consecuencias, ya aplicadas:
+| Plan              |  Precio | Por registro |
+| ----------------- | ------: | -----------: |
+| 1.000 registros   |   300 € |       0,30 € |
+| 5.000 registros ★ |   750 € |       0,15 € |
+| 10.000 registros  | 1.000 € |       0,10 € |
 
-- `datos/fixtures/skus.json` ya no lleva tramos ni umbrales inventados.
-- **No existe mínimo de registros.** El `minimoRegistros: 50` que puse era mío.
+Así que **conviven dos modelos de cobro, y no se convierten entre sí**:
 
-**Este precio en euros solo aplica a quien NO tiene plan.** Quien tiene plan
-consume registros de su saldo, y ahí el número de campos da igual: ver §4. Son
-dos monedas distintas y no se convierten entre sí.
+|                       | Sin plan                                              | Con plan                           |
+| --------------------- | ----------------------------------------------------- | ---------------------------------- |
+| Qué se paga           | por campo y por registro                              | registros comprados por adelantado |
+| Cuánto                | 0,02–0,08 € por campo × registros que lo traen, + IVA | 1 registro por empresa             |
+| ¿Importan los campos? | **sí**, cada uno suma                                 | **no**, van todos incluidos        |
+| Cómo                  | TPV                                                   | descuento de saldo                 |
+
+La página lo dice sin ambigüedad: «Incluye todos los datos disponibles de cada
+empresa (Financieros, comerciales y de contacto)». Ahí está la razón de que los
+campos no cuenten con plan: un registro compra la ficha entera.
+
+Y también: **«Nuestros planes NO CADUCAN»** (§4).
+
+Otra consecuencia: **no existe mínimo de registros**. El `minimoRegistros: 50`
+que puse era mío.
 
 ### `requiredFilter`
 
@@ -525,10 +540,22 @@ Verificado con los dos usuarios de prueba el 08/08/2026:
 Dos avisos sobre esos campos:
 
 - **`numRegistrosMensuales` no es mensual.** Es el total contratado: su propio
-  portal lo rotula «Registros contratados: 9.000.000», y viene con fecha de fin
-  de contrato. Tratarlo como cupo mensual sería multiplicar el saldo por doce.
-- **`fechaFinContrato`**: pasada esa fecha, el plan no debería valer aunque
-  queden registros.
+  portal lo rotula «Registros contratados: 9.000.000». Tratarlo como cupo
+  mensual sería multiplicar el saldo por doce.
+- **`fechaFinContrato` no se usa para bloquear**, y es una contradicción sin
+  resolver que conviene tener presente:
+
+  |                     | Qué dice                                                                                                                 |
+  | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+  | Su página de planes | «Nuestros planes **NO CADUCAN**. Úsalos cuando los necesites.»                                                           |
+  | Su API              | devuelve `fechaFinContrato: "2026-11-16T00:00:00"`                                                                       |
+  | Su frontend         | **la ignora por completo** — `grep fechaFinContrato src/` no da nada, y `tienePlanBBDD` solo mira que venga `iD_usuario` |
+
+  Nia hace lo mismo que su frontend: la guarda como información y no deniega por
+  ella. Denegar sería más estricto que el sistema real y dejaría a un cliente con
+  saldo pagado sin poder gastarlo — peor error que el contrario. Pero **hay que
+  preguntarlo**: puede que la fecha sea la ventana de acceso a la herramienta,
+  distinta de la caducidad de los registros.
 
 #### Un plan se consume en REGISTROS, y los campos dan igual
 
@@ -717,21 +744,25 @@ redactada como el resto.
 
 ## 8. Lo que sigue pendiente
 
-Resuelto: modelo de precio, mínimo de registros, desfase de ejercicios, el
-segmento `0|1|5`, el papel de `filtros`, qué hay detrás del buscador, y el acceso
-—`bbdd-api.infonif.es` es alcanzable desde internet con apikey—. No hay Swagger:
-este documento es la especificación.
+Resuelto: los dos modelos de cobro y qué son los «créditos», el mínimo de
+registros, el desfase de ejercicios, el segmento `0|1|5`, el papel de `filtros`,
+qué hay detrás del buscador, y el acceso —`bbdd-api.infonif.es` es alcanzable
+desde internet con apikey—. No hay Swagger: este documento es la especificación.
 
 Queda, y ninguna bloquea la Fase 1:
 
-1. **Confirmar `ea` y `r`** en la respuesta de búsqueda. `ea` decide qué empresa
+1. **`fechaFinContrato` vs «los planes no caducan»** (§4). Su frontend ignora la
+   fecha; nosotros también. Pero conviene saber qué significa: ¿ventana de acceso
+   a la herramienta, distinta de la caducidad de los registros?
+2. **Confirmar `ea` y `r`** en la respuesta de búsqueda. `ea` decide qué empresa
    ve el usuario cuando hay denominaciones históricas, así que conviene estar
    seguros de que significa «denominación vigente».
-2. **Créditos**: cuánto vale un crédito y cómo se descuenta. `planBBDD` habla de
-   `numRegistrosMensuales`, que parece otra cosa.
 3. **El duplicado `Sta. Cruz De Tenerife`** (8 empresas): ¿lo corrigen o
    convivimos?
 4. **`tipo_cuentas` (~265.000) vs `cuentas_disponibles` de 2024 (1.128.190)**:
    cuentan cosas distintas y no sabemos cuáles.
 5. **Precios de informes y packs** (RAI, Comercial, Riesgo, Cuentas Anuales): otra
    línea de producto, sin confirmar. Solo hace falta para la Fase 5.
+6. **Cómo se compra un plan desde Nia.** Hoy el botón «Recargar» del buscador
+   lleva a `/bases-de-datos/` y ahí se compra a mano. Para la Fase 5 hay que
+   saber si hay endpoint o si Nia solo puede enlazar a esa página.

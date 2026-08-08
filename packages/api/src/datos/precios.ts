@@ -5,6 +5,7 @@ import type { CampoDisponible } from "./infonif/tipos.js";
 // Se importa, no se lee de disco: así viaja dentro del bundle y no depende de
 // dónde quede el fichero al desplegar.
 import catalogoCrudo from "./fixtures/infonif/campos-comprables.json";
+import skus from "./fixtures/skus.json";
 
 /**
  * Fuente única del cálculo de precios. **No hay lógica de precio en ningún
@@ -210,5 +211,76 @@ export function calcularCoste(
     formaDePago: derechos.puedeConsumirSaldo ? "saldo" : "euros",
     enEuros: cotizarListado(camposPedidos, disponibles, empresas, opciones),
     enSaldo: consumoDeSaldo(derechos, empresas),
+  };
+}
+
+// ─── Planes de registros ──────────────────────────────────────────────────────
+
+const TramoPlan = z.object({
+  sku: z.string(),
+  registros: z.number().int().positive(),
+  precio: z.number().positive(),
+  precioPorRegistro: z.number().positive(),
+  destacado: z.boolean().optional(),
+});
+
+export type TramoPlan = z.infer<typeof TramoPlan>;
+
+const PLANES: readonly TramoPlan[] = z
+  .array(TramoPlan)
+  .parse(skus.planesRegistros.tramos)
+  .slice()
+  .sort((a, b) => a.registros - b.registros);
+
+export function planesDeRegistros(): readonly TramoPlan[] {
+  return PLANES;
+}
+
+export interface RecomendacionPlan {
+  tramo: TramoPlan;
+  /** Cuántas unidades de ese tramo hacen falta. Casi siempre 1. */
+  unidades: number;
+  coste: number;
+  registrosSobrantes: number;
+  /**
+   * `true` si comprar el plan sale más barato que pagar este listado suelto.
+   * Para un listado pequeño casi nunca lo es, y hay que decirlo.
+   */
+  mereceLaPenaParaEsteListado: boolean;
+  /** Lo que costaría este listado pagando sin plan, con IVA. Para comparar. */
+  costeSueltoConIva: number;
+}
+
+/**
+ * Recomienda el plan más barato que cubra `registros`.
+ *
+ * Y dice si de verdad conviene. Un listado de 135 empresas cuesta unos 32 € con
+ * IVA; el plan más pequeño son 300 €. Empujar el plan ahí sería vender de más.
+ * Los planes compensan por volumen o por uso repetido, y eso lo tiene que poder
+ * explicar el agente en lugar de recomendar a ciegas.
+ */
+export function recomendarPlan(
+  registros: number,
+  costeSueltoConIva: number,
+): RecomendacionPlan | undefined {
+  if (registros <= 0) return undefined;
+
+  const opciones = PLANES.map((tramo) => {
+    const unidades = Math.ceil(registros / tramo.registros);
+    return {
+      tramo,
+      unidades,
+      coste: redondear(tramo.precio * unidades),
+      registrosSobrantes: tramo.registros * unidades - registros,
+    };
+  }).sort((a, b) => a.coste - b.coste || a.registrosSobrantes - b.registrosSobrantes);
+
+  const mejor = opciones[0];
+  if (!mejor) return undefined;
+
+  return {
+    ...mejor,
+    costeSueltoConIva,
+    mereceLaPenaParaEsteListado: mejor.coste < costeSueltoConIva,
   };
 }

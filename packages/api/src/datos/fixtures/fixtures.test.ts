@@ -10,7 +10,7 @@ import skusCrudo from "./skus.json";
 const CatalogoSkus = z.object({
   moneda: z.literal("EUR"),
   ivaPorcentaje: z.literal(21),
-  formasDePago: z.array(z.enum(["euros", "creditos"])).nonempty(),
+  formasDePago: z.array(z.enum(["euros", "registros"])).nonempty(),
   informes: z
     .array(
       z.object({ sku: z.string(), precio: z.number().positive(), unidad: z.string() }),
@@ -55,16 +55,17 @@ describe("fixture de SKU", () => {
   });
 
   it("el listado no tiene tramos por volumen ni mínimo de registros", () => {
-    // El cliente confirmó (08/08/2026) que los tramos 0,30/0,15/0,10 de CLAUDE.md
-    // son referenciales. El precio real es por campo y por registro, y no hay
-    // mínimo. Este test existe para que nadie los reintroduzca de memoria.
+    // Los tramos 0,30/0,15/0,10 de CLAUDE.md existen, pero son el precio de
+    // COMPRAR registros de un plan, no el de un listado suelto: viven en
+    // `planesRegistros`. Aquí no pintan nada, y este test evita que vuelvan.
     expect(skus.listados).not.toHaveProperty("tramos");
     expect(skus.listados.minimoRegistros).toBeNull();
     expect(skus.listados.modeloPrecio).toBe("por-campo-y-registro");
   });
 
-  it("se puede pagar en euros y con créditos", () => {
+  it("se paga en euros o con registros de un plan", () => {
+    // Los «créditos» del cliente son registros, y solo valen para este producto.
     expect(skus.formasDePago).toContain("euros");
-    expect(skus.formasDePago).toContain("creditos");
+    expect(skus.formasDePago).toContain("registros");
   });
 });
