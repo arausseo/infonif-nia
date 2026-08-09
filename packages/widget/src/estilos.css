@@ -53,6 +53,14 @@
   /* --radius y --tag-radius de miarea.css, con sus mismos dos niveles. */
   --nia-radio: 8px;
   --nia-radio-menor: 4px;
+
+  /*
+   * Dónde se ancla el lanzador. Se puede mover desde la página anfitriona
+   * (window.__INFONIF_AGENT__.posicion) porque Nia no es lo único que flota:
+   * en /bases-de-datos hay un chat de Zendesk exactamente en esa esquina.
+   */
+  --nia-pos-derecha: 24px;
+  --nia-pos-abajo: 24px;
 }
 
 /*
@@ -97,8 +105,8 @@ button {
 
 .nia-lanzador {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: var(--nia-pos-derecha);
+  bottom: var(--nia-pos-abajo);
   z-index: 2147483000;
 
   display: flex;
@@ -208,8 +216,8 @@ button {
 
 .nia-cajon {
   position: fixed;
-  right: 24px;
-  bottom: 88px;
+  right: var(--nia-pos-derecha);
+  bottom: calc(var(--nia-pos-abajo) + 64px);
   z-index: 2147483000;
 
   display: flex;
