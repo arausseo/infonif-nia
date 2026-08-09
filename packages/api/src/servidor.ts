@@ -11,6 +11,7 @@ import { estadoCatalogo, prepararCatalogo } from "./datos/catalogo.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
 import { registrarMint } from "./rutas/mint.js";
+import { registrarWidget } from "./rutas/widget.js";
 
 export function construirServidor() {
   const app = Fastify({ loggerInstance: registro, disableRequestLogging: false });
@@ -36,6 +37,7 @@ export function construirServidor() {
 
   registrarConversar(app);
   registrarMint(app);
+  registrarWidget(app);
 
   app.setErrorHandler((error, peticion, respuesta) => {
     if (esErrorNia(error)) {

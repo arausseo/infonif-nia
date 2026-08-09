@@ -43,6 +43,18 @@ export function montar(): void {
 
   const contenedor = document.createElement("div");
   contenedor.className = "nia-raiz";
+
+  // Si la página pide otro anclaje, se aplica aquí y no en React: son variables
+  // CSS que leen el lanzador y el cajón, y no cambian en toda la vida del
+  // widget. Meterlas en el render solo añadiría un repintado.
+  const posicion = configuracionActual().posicion;
+  if (posicion?.derecha !== undefined) {
+    contenedor.style.setProperty("--nia-pos-derecha", `${posicion.derecha}px`);
+  }
+  if (posicion?.abajo !== undefined) {
+    contenedor.style.setProperty("--nia-pos-abajo", `${posicion.abajo}px`);
+  }
+
   sombra.appendChild(contenedor);
 
   raiz = createRoot(contenedor);

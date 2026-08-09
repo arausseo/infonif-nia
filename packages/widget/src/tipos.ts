@@ -14,6 +14,13 @@ export interface ConfiguracionEmbebida {
   contexto?: ContextoPagina;
   /** Base del API. Por defecto, el mismo origen del script. */
   apiBase?: string;
+  /**
+   * Dónde se ancla el lanzador, en píxeles desde la esquina inferior derecha.
+   *
+   * Nia no es lo único que flota en el portal: `/bases-de-datos` lleva un chat
+   * de Zendesk justo en esa esquina. Sin esto, se solapan.
+   */
+  posicion?: { derecha?: number; abajo?: number };
 }
 
 declare global {
