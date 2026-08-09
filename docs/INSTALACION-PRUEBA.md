@@ -74,12 +74,20 @@ getenforce        # normalmente: Enforcing
 suyo es limitarlo a las IP que de verdad lo necesitan, no abrirlo a la red:
 
 ```bash
-sudo firewall-cmd --permanent --new-zone=nia 2>/dev/null || true
-sudo firewall-cmd --permanent --zone=nia --add-source=192.168.210.0/24
-sudo firewall-cmd --permanent --zone=nia --add-port=3000/tcp
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.210.0/24" port port="3000" protocol="tcp" accept'
 sudo firewall-cmd --reload
-sudo firewall-cmd --zone=nia --list-all
+sudo firewall-cmd --list-rich-rules
 ```
+
+Una regla enriquecida y no una zona propia: es una sola orden y no depende de que
+la asignación de zona por origen funcione. Queda igual de restringida — solo esa
+red llega al 3000.
+
+**Cómo se reconoce que falta esto.** Desde la máquina del nginx, `ping` a la de
+Nia funciona pero `telnet 192.168.210.33 3000` se queda colgado hasta agotar el
+tiempo. Ese matiz es el diagnóstico: si no hubiera nada escuchando, el rechazo
+sería inmediato («connection refused»). Un tiempo agotado significa que alguien
+está tirando los paquetes.
 
 **En la máquina del nginx** (que también es RHEL/Fedora — su
 `ssl_ciphers PROFILE=SYSTEM` lo delata), SELinux bloquea por defecto que nginx
@@ -554,6 +562,9 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
+| `telnet IP 3000` agota el tiempo pero `ping` va | firewalld en la maquina de Nia. Tiempo agotado (no «refused») = paquetes descartados. Ver 1.1. |
+| 502 en `/nia/salud` | nginx no alcanza el 3000: cortafuegos, o `httpd_can_network_connect` en off en la maquina del nginx. |
+| 404 en `/nia/salud` | A nginx le falta la `location /nia/`. No es el cortafuegos. |
 | `fetch failed` contra bbdd-api en centesimas de segundo | No es la red: es la cadena TLS incompleta de ese host. Ver 3.1. |
 | `ERR_MODULE_NOT_FOUND` … `packages/semantica/src/corpus.js` | Falta compilar `@nia/semantica`. Ejecuta `pnpm -r build` otra vez y comprueba que existe `packages/semantica/dist/index.js`. |
 | `Exit status 137` compilando | Es el OOM killer. Estás regenerando embeddings en una máquina que no da para ello. No hace falta: los artefactos van versionados. Compila con `pnpm -r build`, que se salta ese paso. |
