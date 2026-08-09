@@ -29,17 +29,30 @@
  */
 :host,
 .nia-raiz {
+  /*
+   * Los neutros, el radio y la sombra salen de miarea/assets/miarea.css, que es
+   * la hoja del área interna. Estaban a un 2 % de distancia y aun así se notaba:
+   * lo que más cantaba era el radio de 14 px contra los 8 de ellos, que hacía
+   * que el cajón pareciese pegado desde fuera.
+   *
+   * El acento NO sale de ahí y no puede (ADR-010). Su paleta tiene ocupados el
+   * rojo de marca (#e6003c), el azul (#1264a3), el verde (#168354), el ámbar
+   * (#b76b00) y el peligro (#b42318). El violeta es el único hueco que queda
+   * sin significado previo, y por eso es de la IA.
+   */
   --nia-acento: #6246ea;
   --nia-acento-suave: #eee9ff;
-  --nia-tinta: #14161f;
-  --nia-tinta-suave: #5b6072;
-  --nia-tinta-tenue: #8b90a3;
+  --nia-tinta: #172033;
+  --nia-tinta-suave: #667085;
+  --nia-tinta-tenue: #98a2b3;
   --nia-papel: #ffffff;
-  --nia-papel-suave: #f7f7fb;
-  --nia-borde: #e3e5ee;
-  --nia-error: #b3261e;
-  --nia-sombra: 0 8px 30px rgba(20, 22, 31, 0.16);
-  --nia-radio: 14px;
+  --nia-papel-suave: #f8fafc;
+  --nia-borde: #dbe2ea;
+  --nia-error: #b42318;
+  --nia-sombra: 0 14px 34px rgba(15, 23, 42, 0.16);
+  /* --radius y --tag-radius de miarea.css, con sus mismos dos niveles. */
+  --nia-radio: 8px;
+  --nia-radio-menor: 4px;
 }
 
 /*
@@ -52,11 +65,16 @@
  * la tipografía se fija aquí.
  */
 .nia-raiz {
+  /*
+   * La misma pila que miarea.css. Ojo: esa página nombra Inter pero no la
+   * carga —ni @font-face ni Google Fonts—, así que en la práctica casi todo el
+   * mundo ve Segoe UI. Se copia igual, por si algún día la cargan.
+   */
   font-family:
-    system-ui,
-    -apple-system,
+    Inter,
     "Segoe UI",
     Roboto,
+    Arial,
     sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -111,7 +129,7 @@ button {
 
 .nia-insignia {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--nia-radio-menor);
   background: rgba(255, 255, 255, 0.22);
   font-size: 10px;
   font-weight: 700;
@@ -244,7 +262,7 @@ button {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--nia-radio-menor);
   background: transparent;
   color: var(--nia-tinta-suave);
   font-size: 15px;
@@ -273,7 +291,7 @@ button {
 .nia-pregunta {
   margin: 0 0 12px;
   padding: 8px 12px;
-  border-radius: 10px 10px 10px 2px;
+  border-radius: 8px 8px 8px 2px;
   background: var(--nia-acento-suave);
   color: var(--nia-tinta);
   font-weight: 500;
@@ -309,7 +327,7 @@ button {
 
 .nia-respuesta code {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--nia-radio-menor);
   background: var(--nia-papel-suave);
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: 12.5px;
@@ -326,7 +344,7 @@ button {
 .nia-pasos {
   margin-bottom: 12px;
   border: 1px solid var(--nia-borde);
-  border-radius: 10px;
+  border-radius: var(--nia-radio);
   background: var(--nia-papel-suave);
   /* Sin animación de salida: produce saltos de layout durante el streaming. */
 }
@@ -426,7 +444,7 @@ button {
   margin-top: 12px;
   padding: 14px;
   border: 1px solid var(--nia-borde);
-  border-radius: 10px;
+  border-radius: var(--nia-radio);
   background: var(--nia-papel);
 }
 
@@ -567,7 +585,7 @@ button {
   margin-bottom: 8px;
   padding: 10px 12px;
   border: 1px solid var(--nia-borde);
-  border-radius: 10px;
+  border-radius: var(--nia-radio);
   background: var(--nia-papel);
   text-align: left;
   font-size: 13.5px;
@@ -615,7 +633,7 @@ button {
   overflow-y: hidden;
   padding: 9px 11px;
   border: 1px solid var(--nia-borde);
-  border-radius: 10px;
+  border-radius: var(--nia-radio);
   background: var(--nia-papel);
   font: inherit;
   font-size: 14px;
@@ -632,7 +650,7 @@ button {
   flex: none;
   padding: 0 16px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--nia-radio-menor);
   background: var(--nia-acento);
   color: #fff;
   font-size: 14px;
