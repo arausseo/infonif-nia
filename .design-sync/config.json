@@ -1,0 +1,28 @@
+{
+  "projectId": "13cd99ef-e7af-40e9-9761-39844f4e71bd",
+  "shape": "package",
+  "pkg": "@nia/widget",
+  "globalName": "NiaWidget",
+  "buildCmd": "pnpm --filter @nia/widget build:biblioteca",
+  "srcDir": "src",
+  "tsconfig": "tsconfig.json",
+  "cssEntry": "src/estilos.css",
+  "provider": {
+    "component": "RaizNia"
+  },
+  "docsDir": "docs",
+  "libOverrides": {
+    "source-kit.mjs": "GENERIC_DIR no reconoce «componentes» y el repo nombra en español"
+  },
+  "guidelinesGlob": [],
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "RaizNia": {
+      "cardMode": "column"
+    },
+    "Lanzador": {
+      "cardMode": "single",
+      "primaryStory": "Sugerencia"
+    }
+  }
+}

@@ -6,7 +6,29 @@
  * ya significan solvente y riesgo. Violeta, reservado a lo que es IA.
  */
 
+/*
+ * El corte con la página, solo en el anfitrión.
+ *
+ * `all: initial` va en su propia regla y ANTES de los tokens. No puede
+ * compartir regla con `.nia-raiz`: eso es un div, y `all: initial` le pondría
+ * `display: inline`. Y va antes por si acaso — `all` no resetea propiedades
+ * personalizadas, pero no hace falta depender de ese detalle.
+ */
 :host {
+  all: initial;
+}
+
+/*
+ * Los tokens se declaran en los dos sitios a la vez.
+ *
+ * Dentro del widget real basta `:host`. Pero estos mismos componentes se
+ * renderizan fuera de un shadow root —en el design system, donde `:host` no
+ * existe y no casa con nada—, y allí quien los lleva es `.nia-raiz`. Declararlos
+ * dos veces con los mismos valores no cambia nada dentro del widget: `.nia-raiz`
+ * ya los heredaba de `:host`.
+ */
+:host,
+.nia-raiz {
   --nia-acento: #6246ea;
   --nia-acento-suave: #eee9ff;
   --nia-tinta: #14161f;
@@ -18,8 +40,6 @@
   --nia-error: #b3261e;
   --nia-sombra: 0 8px 30px rgba(20, 22, 31, 0.16);
   --nia-radio: 14px;
-
-  all: initial;
 }
 
 /*
@@ -580,7 +600,10 @@ button {
 .nia-compositor__entrada {
   flex: 1;
   min-height: 40px;
+  /* El tope. Pasado esto crece la barra, no la caja: el cajón no se come
+     la conversación. Lo aplica useAltoAutomatico. */
   max-height: 120px;
+  overflow-y: auto;
   padding: 9px 11px;
   border: 1px solid var(--nia-borde);
   border-radius: 10px;

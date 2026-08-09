@@ -13,3 +13,11 @@ coverage/
 # ADR-004: el artefacto de embeddings SÍ se versiona. Son ~1 MB y evita que un
 # despliegue tenga que regenerarlo. Se rehace con `pnpm embeddings`.
 packages/semantica/dist/
+
+# design-sync: scripts montados, salida regenerable y estado de máquina.
+# Lo duradero (config.json, NOTES.md, conventions.md, previews/, overrides/) SÍ se versiona.
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules

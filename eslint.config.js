@@ -9,6 +9,12 @@ export default tseslint.config(
       "**/coverage/**",
       "**/*.json",
       "packages/semantica/artefactos/**",
+      "**/dist-biblioteca/**",
+      // design-sync: scripts montados y salida regenerable. No es código nuestro.
+      ".ds-sync/**",
+      "ds-bundle/**",
+      ".design-sync/.cache/**",
+      ".design-sync/overrides/**",
     ],
   },
   js.configs.recommended,

@@ -3,13 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "types": "./dist-biblioteca/biblioteca.d.ts",
   "exports": {
-    ".": "./src/montar.tsx"
+    ".": "./src/montar.tsx",
+    "./biblioteca": "./src/biblioteca.ts"
   },
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:biblioteca": "tsc -p tsconfig.biblioteca.json"
   },
   "dependencies": {
     "react": "^18.3.1",

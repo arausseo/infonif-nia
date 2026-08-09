@@ -1,0 +1,22 @@
+{
+  "//": "Compila src/biblioteca.ts a ESM con declaraciones, para el design system.",
+  "//2": "El bundle que embebe el portal lo sigue haciendo vite (vite.config.ts).",
+  "//2b": "Directorio aparte: vite vacia dist/ en cada build y se llevaria esto por delante.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist-biblioteca",
+    "rootDir": "src",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": []
+  },
+  "//3": "`files`, no `include`: tsc sigue los imports y compila solo el grafo real.",
+  "//4": "Con un glob entraba Widget.tsx, que importa montar.js — el módulo que se auto-monta.",
+  "//5": "`include: []` es obligatorio: el del tsconfig padre se hereda y se suma a `files`.",
+  "files": ["src/biblioteca.ts"],
+  "include": []
+}
