@@ -14,7 +14,9 @@ import { registrarMint } from "./rutas/mint.js";
 import { registrarWidget } from "./rutas/widget.js";
 
 export function construirServidor() {
-  const app = Fastify({ loggerInstance: registro, disableRequestLogging: false });
+  // `disableRequestLogging: false` estaba de más: es el valor por defecto y en
+  // Fastify 5 solo sirve para que avise de que está obsoleto.
+  const app = Fastify({ loggerInstance: registro });
 
   app.register(cors, { origin: origenesPermitidos, credentials: true });
 

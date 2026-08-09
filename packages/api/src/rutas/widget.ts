@@ -28,14 +28,37 @@ type Servidor = FastifyInstance<
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 
-/** dist/rutas/ → packages/api/ → packages/widget/dist */
-const CANDIDATOS = [
-  resolve(AQUI, "../../../widget/dist"),
-  resolve(AQUI, "../../../../widget/dist"),
-];
+/**
+ * Busca `packages/widget/dist/widget.js` subiendo desde donde esté este módulo.
+ *
+ * Antes eran dos rutas relativas fijas, calculadas suponiendo que el compilado
+ * quedaría en `dist/rutas/`. No queda ahí: tsup empaqueta todo en un único
+ * `dist/servidor.js`, así que en producción las dos rutas apuntaban un nivel más
+ * arriba de la cuenta y el widget «no existía» estando ahí mismo. Funcionaba en
+ * desarrollo —donde el módulo sí vive en `src/rutas/`— que es justo el peor sitio
+ * donde tener el fallo.
+ *
+ * Subir buscando vale para las dos disposiciones y para la siguiente.
+ */
+function buscarWidget(): { raiz: string; buscado: string[] } {
+  const buscado: string[] = [];
+  let directorio = AQUI;
+
+  for (let nivel = 0; nivel < 8; nivel++) {
+    const candidato = resolve(directorio, "packages/widget/dist");
+    buscado.push(candidato);
+    if (existsSync(resolve(candidato, "widget.js"))) return { raiz: candidato, buscado };
+
+    const padre = dirname(directorio);
+    if (padre === directorio) break; // raíz del sistema de ficheros
+    directorio = padre;
+  }
+
+  return { raiz: "", buscado };
+}
 
 export function registrarWidget(app: Servidor): void {
-  const raiz = CANDIDATOS.find((c) => existsSync(resolve(c, "widget.js")));
+  const { raiz, buscado: CANDIDATOS } = buscarWidget();
 
   if (!raiz) {
     // No es fatal: el API sirve para algo sin el widget, y en desarrollo el
