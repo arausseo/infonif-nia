@@ -195,6 +195,10 @@ window.__INFONIF_AGENT__ = {
 <script src="https://nia.infonif.es/widget.js" async></script>
 ```
 
+> Las URLs de arriba son ilustrativas. En el entorno de prueba del cliente Nia no
+> tiene dominio propio: cuelga de `https://bbdd-api2.infonif.es/nia/`. Los valores
+> reales están en [INSTALACION-PRUEBA.md](INSTALACION-PRUEBA.md) §5.
+
 `POST /internal/mint` valida el secreto compartido, resuelve los derechos del
 usuario contra SQL Server y firma un token de 15 minutos. **Este endpoint no debe
 ser alcanzable desde internet**: solo desde la red del IIS.

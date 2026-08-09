@@ -25,10 +25,10 @@ Sin esto no se puede arrancar. Conviene reclamarlo el primer día.
       público del buscador actual— pero hay que tenerla.
 - [ ] **Una máquina Linux** alcanzable desde el IIS, con salida a internet
       (habla con `api.anthropic.com` y con `bbdd-api.infonif.es`).
-- [ ] **HTTPS para el API.** El portal va por HTTPS y un navegador no deja que
-      una página segura hable con un origen que no lo sea. En el entorno de
-      prueba del cliente **no hace falta DNS ni certificado nuevos**: Nia cuelga
-      de un prefijo del host que ya existe — ver [NGINX-PRUEBA.md](NGINX-PRUEBA.md).
+- [ ] **Acceso al nginx** de `bbdd-api2.infonif.es`. **No hace falta DNS ni
+      certificado nuevos**: Nia cuelga de un prefijo de ese host, que ya tiene
+      HTTPS (paso 5). Sí hace falta HTTPS: el portal va por HTTPS y un navegador
+      no deja que una página segura hable con un origen que no lo sea.
 - [ ] **Quién toca el IIS.** Los cambios en el ASP son de tres ficheros, pero
       alguien con acceso tiene que aplicarlos.
 
@@ -219,66 +219,108 @@ llenarse tras el arranque: es normal que salga `"cargado": false` al principio.
 
 ---
 
-## 5. Nginx delante
+## 5. Nginx: Nia en el dominio que ya existe
 
-> **En el entorno de prueba del cliente esta sección NO aplica.** No hay DNS ni
-> certificado propios para Nia; cuelga de un prefijo del host que ya existe.
-> Ver [NGINX-PRUEBA.md](NGINX-PRUEBA.md). Lo de abajo es la topología de
-> producción, con nombre propio.
+**No hay que dar de alta ningún DNS ni pedir certificado.** El bloque de 443 de
+`/etc/nginx/conf.d/bbdd-api2.infonif.es.conf` tiene `server_name _;`, o sea que
+ya atiende cualquier host que llegue con ese certificado. Nia cuelga de un
+prefijo de ruta, igual que `/api/buscador` y `/api/infocif`, y queda en:
 
-Hace tres cosas: pone el HTTPS, **cierra `/internal/` al exterior** y deja pasar
-el streaming sin bufferizarlo.
+```
+https://bbdd-api2.infonif.es/nia/
+```
 
-En Fedora los sitios van en `/etc/nginx/conf.d/`, no en `sites-available`.
+Se edita **ese fichero**, y no se toca nada de lo que ya hay dentro.
 
-`/etc/nginx/conf.d/nia.conf`:
+### 5.1 El upstream
+
+Junto al `upstream buscador_api` que ya está, **fuera** de los bloques `server`:
 
 ```nginx
-server {
-    listen 443 ssl http2;
-    server_name nia-pruebas.infonif.es;
-
-    ssl_certificate     /etc/letsencrypt/live/nia-pruebas.infonif.es/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/nia-pruebas.infonif.es/privkey.pem;
-
-    # /internal/mint acuña tokens para CUALQUIER usuario si conoces el secreto.
-    # No puede ser alcanzable desde internet. Ajusta el rango al del IIS.
-    location /internal/ {
-        allow 10.0.0.0/8;
-        allow 192.168.0.0/16;
-        deny  all;
-        proxy_pass http://127.0.0.1:3000;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-
-        # Server-Sent Events. Sin esto la respuesta llega de golpe al final y
-        # se pierde justamente lo que se quiere enseñar: el progreso en vivo.
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 300s;
-    }
+upstream nia_api {
+    server 192.168.210.XX:3000;   # la máquina Fedora del paso 1
 }
 ```
+
+### 5.2 Los dos `location`
+
+Dentro del `server { listen 443 ssl; ... }` que ya existe:
+
+```nginx
+    # /nia/internal/mint acuña un token para CUALQUIER usuario si conoces el
+    # secreto. Este host SÍ está publicado en internet, así que se cierra aquí.
+    # El IIS no pasa por este nginx para acuñar: va directo a la IP interna del
+    # servicio (NIA_BASE_INTERNA en el include del ASP), y por eso cerrarlo no
+    # rompe el puente de sesión.
+    location /nia/internal/ {
+        deny all;
+        return 403;
+    }
+
+    location /nia/ {
+        # La barra final del proxy_pass ES obligatoria: quita el prefijo /nia
+        # antes de reenviar, así el API no necesita saber dónde está montado.
+        #   /nia/v1/conversar  →  /v1/conversar
+        # Sin ella, 404 en todo.
+        proxy_pass http://nia_api/;
+
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Server-Sent Events. Sin esto la respuesta llega de golpe al final y se
+        # pierde justo lo que la demo tiene que enseñar: el progreso en vivo.
+        # Los proxy_*_timeout ya están a 3600 a nivel de server.
+        proxy_buffering off;
+        proxy_cache off;
+        chunked_transfer_encoding on;
+    }
+```
+
+nginx elige la ubicación por prefijo más largo, así que `/nia/internal/` gana a
+`/nia/` y el bloqueo se aplica de verdad.
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Comprobar desde **fuera**:
+### 5.3 Comprobar desde fuera
 
 ```bash
-curl -s https://nia-pruebas.infonif.es/salud
-curl -sI https://nia-pruebas.infonif.es/widget.js | head -3
+curl -s https://bbdd-api2.infonif.es/nia/salud
+# {"ok":true,"servicio":"nia-api",...}
+
+curl -sI https://bbdd-api2.infonif.es/nia/widget.js | head -3
+# HTTP/2 200 · application/javascript
+
 curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-     https://nia-pruebas.infonif.es/internal/mint     # tiene que dar 403
+     https://bbdd-api2.infonif.es/nia/internal/mint
+# 403 ← TIENE que dar esto
 ```
 
-Ese último **tiene que fallar**. Si responde, el puente está abierto a internet.
+Ese último es el que importa. Si responde otra cosa, cualquiera desde internet
+puede acuñar un token para cualquier usuario del portal.
+
+Y que el streaming no se bufferice:
+
+```bash
+curl -N -s -X POST https://bbdd-api2.infonif.es/nia/v1/conversar \
+     -H 'content-type: application/json' -d '{"mensaje":"hola"}'
+```
+
+Los eventos tienen que ir apareciendo poco a poco. Si salen todos juntos al
+final, falta el `proxy_buffering off`.
+
+### 5.4 Cuando Nia pase a producción
+
+Entonces sí merece su propio `server` con su nombre y su certificado, aunque solo
+sea para tener límites y logs separados. La forma sería la de siempre —un bloque
+`server` con `server_name nia.infonif.es`, `location /` en vez de `location /nia/`
+(y sin la barra final del `proxy_pass`, que ya no habría prefijo que quitar) y
+`/internal/` restringido por IP en lugar de denegado del todo—. Para la prueba de
+concepto no hace falta.
 
 ---
 
@@ -304,12 +346,19 @@ visible, que es lo traicionero.
 Copiar `bases-de-datos/includes/nia.asp` y ajustar las dos URLs de arriba:
 
 ```vbscript
-NIA_BASE_INTERNA = "http://<ip-de-la-maquina>:3000"   ' o 127.0.0.1 si es local
-NIA_BASE_PUBLICA = "https://nia-pruebas.infonif.es"
+NIA_BASE_INTERNA = "http://192.168.210.XX:3000"           ' la IP del paso 1
+NIA_BASE_PUBLICA = "https://bbdd-api2.infonif.es/nia"     ' con el prefijo
 ```
 
-`INTERNA` la usa el servidor para acuñar; `PUBLICA` la usa el navegador. **No son
-la misma** y confundirlas es el fallo más probable de todo este documento.
+`INTERNA` la usa el IIS para acuñar el token, servidor a servidor y **sin pasar
+por nginx**. `PUBLICA` la usa el navegador. **No son la misma**, y confundirlas es
+el fallo más probable de todo este documento.
+
+Dos detalles de `PUBLICA`:
+
+- Lleva **`/nia`**. Es el prefijo del paso 5.
+- **No lleva barra final.** El widget concatena `/v1/conversar` detrás; con barra
+  saldría `//v1/conversar`.
 
 ### 6.3 Las dos páginas
 
@@ -347,7 +396,8 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 
 | Síntoma | Dónde mirar |
 |---|---|
-| No aparece la píldora | ¿404 en `widget.js`? Comprueba `NIA_BASE_PUBLICA` y que `packages/widget/dist/widget.js` exista en el servidor. |
+| No aparece la píldora | ¿404 en `widget.js`? Casi siempre falta el `/nia` en `NIA_BASE_PUBLICA`, o sobra la barra final. Comprueba también que `packages/widget/dist/widget.js` exista en el servidor. |
+| Todo da 404 bajo `/nia/` pero el servicio responde en su :3000 | Falta la barra final en `proxy_pass http://nia_api/;`. Sin ella nginx reenvía `/nia/v1/conversar` tal cual y el API no conoce esa ruta. |
 | Aparece pero al enviar no pasa nada | Consola del navegador. Casi siempre es CORS: `ORIGENES_PERMITIDOS` tiene que llevar el origen exacto del portal, con `https://` y sin barra final. |
 | Nia no reconoce al usuario | `journalctl` sin línea `token acuñado` → el secreto no coincide, o el IIS no llega a `NIA_BASE_INTERNA`. Pruébalo desde el propio IIS. |
 | Los pasos salen todos de golpe al final | `proxy_buffering off` no está aplicado. Es el paso 5. |
