@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { conversar } from "../sse/cliente.js";
 import { aplicar, esperaHastaCierre, turnoVacio } from "../estado/turno.js";
-import { configuracionActual } from "../montar.js";
+import { baseDelScript, configuracionActual } from "../montar.js";
 import type { ConfiguracionEmbebida, EventoServidor, Turno } from "../tipos.js";
 
 const CLAVE_CONVERSACION = "nia:conversationId";
@@ -27,7 +27,7 @@ export function useConversacion(configuracion: ConfiguracionEmbebida) {
   /** Cuándo apareció cada paso, para el mínimo visible de 350 ms. */
   const aparicion = useRef<Map<string, number>>(new Map());
 
-  const apiBase = configuracion.apiBase ?? origenDelScript();
+  const apiBase = configuracion.apiBase ?? baseDelScript() ?? window.location.origin;
 
   const enviar = useCallback(
     async (mensaje: string) => {
@@ -132,14 +132,3 @@ function guardarConversacion(id: string): void {
 }
 
 /** El API vive en el mismo origen que el script embebido, salvo que digan otra cosa. */
-function origenDelScript(): string {
-  const actual = document.currentScript as HTMLScriptElement | null;
-  if (actual?.src) {
-    try {
-      return new URL(actual.src).origin;
-    } catch {
-      // cae al origen de la página
-    }
-  }
-  return window.location.origin;
-}

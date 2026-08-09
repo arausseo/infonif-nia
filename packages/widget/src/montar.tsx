@@ -9,6 +9,33 @@ const ID_ANFITRION = "nia-anfitrion";
 let raiz: Root | undefined;
 
 /**
+ * De dónde se ha cargado este script, sin el nombre del fichero.
+ *
+ * Se calcula AQUÍ, al evaluarse el módulo, porque es el único momento en que
+ * `document.currentScript` vale algo: durante el render de React ya es `null` y
+ * el respaldo acababa apuntando al origen del portal, que no es el del API.
+ *
+ * Y se queda con la ruta, no solo el origen: en el entorno de pruebas Nia cuelga
+ * de un prefijo (`/nia/`) del mismo host que otro servicio, porque no había DNS
+ * propio. Quedarse con el origen dejaba fuera ese prefijo.
+ */
+const BASE_DEL_SCRIPT: string | undefined = (() => {
+  const actual = document.currentScript as HTMLScriptElement | null;
+  if (!actual?.src) return undefined;
+  try {
+    const url = new URL(actual.src);
+    return url.origin + url.pathname.replace(/\/[^/]*$/, "");
+  } catch {
+    return undefined;
+  }
+})();
+
+/** La base del API cuando la página no la ha dicho. */
+export function baseDelScript(): string | undefined {
+  return BASE_DEL_SCRIPT;
+}
+
+/**
  * La configuración se lee en cada envío, no se congela al montar.
  *
  * El token de sesión dura 15 minutos, así que la página puede querer renovarlo

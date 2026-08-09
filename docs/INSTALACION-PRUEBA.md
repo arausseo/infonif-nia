@@ -25,9 +25,10 @@ Sin esto no se puede arrancar. Conviene reclamarlo el primer día.
       público del buscador actual— pero hay que tenerla.
 - [ ] **Una máquina Linux** alcanzable desde el IIS, con salida a internet
       (habla con `api.anthropic.com` y con `bbdd-api.infonif.es`).
-- [ ] **Un nombre DNS y un certificado** para el API. Aquí se supone
-      `nia-pruebas.infonif.es`. Tiene que ser **HTTPS**: el portal va por HTTPS y
-      un navegador no deja que una página segura hable con un origen que no lo es.
+- [ ] **HTTPS para el API.** El portal va por HTTPS y un navegador no deja que
+      una página segura hable con un origen que no lo sea. En el entorno de
+      prueba del cliente **no hace falta DNS ni certificado nuevos**: Nia cuelga
+      de un prefijo del host que ya existe — ver [NGINX-PRUEBA.md](NGINX-PRUEBA.md).
 - [ ] **Quién toca el IIS.** Los cambios en el ASP son de tres ficheros, pero
       alguien con acceso tiene que aplicarlos.
 
@@ -170,6 +171,11 @@ llenarse tras el arranque: es normal que salga `"cargado": false` al principio.
 ---
 
 ## 5. Nginx delante
+
+> **En el entorno de prueba del cliente esta sección NO aplica.** No hay DNS ni
+> certificado propios para Nia; cuelga de un prefijo del host que ya existe.
+> Ver [NGINX-PRUEBA.md](NGINX-PRUEBA.md). Lo de abajo es la topología de
+> producción, con nombre propio.
 
 Hace tres cosas: pone el HTTPS, **cierra `/internal/` al exterior** y deja pasar
 el streaming sin bufferizarlo.
