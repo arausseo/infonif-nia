@@ -112,7 +112,9 @@ pnpm dev          # api + widget + demo en paralelo
 pnpm build        # incluye generación de embeddings
 pnpm test
 pnpm typecheck
-pnpm embeddings   # regenera vectores CNAE (solo si cambia el corpus)
+pnpm embeddings   # regenera vectores CNAE (solo si cambia el corpus).
+                  # Se salta solo si están al día. --forzar lo obliga.
+                  # Pide ~4 GB de RAM: con menos, el OOM killer lo mata.
 ```
 
 ## Variables de entorno

@@ -39,7 +39,9 @@ Stripe (la compra es la fase 5).
 
 ## 1. La máquina del API (Fedora)
 
-2 vCPU y 2 GB llegan de sobra para una demo.
+2 vCPU y 2 GB llegan de sobra para una demo. Solo hay una cosa que pida
+más: regenerar los embeddings del CNAE, que necesita ~4 GB — y no hace falta
+hacerlo, van versionados en el repositorio (ver paso 2).
 
 ```bash
 # Node 22. Fedora 40+ ya lo trae; si no, NodeSource tiene repositorio RPM.
@@ -171,10 +173,22 @@ vez que hace falta**, no en el build. Si esa salida está cortada, el efecto es 
 mismo: se registra `no se pudo cargar el modelo semántico` y se sigue con el
 léxico. Conviene saberlo antes de la demo, no durante.
 
-`pnpm build` hace tres cosas: genera los embeddings del CNAE (tarda unos minutos
-la primera vez, se baja un modelo de ~120 MB), compila el API y compila el
-widget. **El widget tiene que compilarse**: si `packages/widget/dist/widget.js`
-no existe, el API arranca igual pero registra un error y el `<script>` del portal
+`pnpm build` compila el API y el widget, y **no regenera los embeddings** salvo
+que hagan falta de verdad. Los vectores del CNAE van versionados en el
+repositorio (1 MB), así que en un despliegue normal el paso se salta solo y el
+build entero tarda unos segundos:
+
+```
+Los artefactos están al día; no se regenera nada.
+```
+
+Solo se rehacen si cambia el corpus, el modelo o las dimensiones — o si se pide
+con `pnpm embeddings --forzar`. Y eso **necesita ~4 GB de memoria**: con menos, el
+kernel mata el proceso a mitad y `pnpm` devuelve un escueto `Exit status 137`.
+Para una demo no hay ningún motivo para tocarlo.
+
+**El widget tiene que compilarse**: si `packages/widget/dist/widget.js` no
+existe, el API arranca igual pero registra un error y el `<script>` del portal
 dará 404.
 
 Comprobación:
@@ -460,6 +474,7 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
+| `Exit status 137` compilando | Es el OOM killer. Estás regenerando embeddings en una máquina que no da para ello. No hace falta: los artefactos van versionados. Compila con `pnpm -r build`, que se salta ese paso. |
 | `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
 | `sudo su nia` → «This account is currently not available» | Correcto y esperado: ese usuario tiene `nologin`. No hay que entrar como él. |
 | En el log: «no se pudo cargar el modelo semántico» | No es fatal. O se instaló con `--no-optional`, o la máquina no llega a `huggingface.co`. Nia sigue con los términos curados (ver 2.2). |
