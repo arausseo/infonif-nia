@@ -67,6 +67,16 @@ nginx elige la ubicación por prefijo más largo, así que `/nia/internal/` gana
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
+**SELinux.** Esa máquina es de la familia RHEL (su `ssl_ciphers PROFILE=SYSTEM`
+lo delata) y por defecto SELinux no deja que nginx abra conexiones de salida.
+Como ya hace `proxy_pass` a `192.168.210.31:9000` seguramente esté puesto, pero
+si el bloque nuevo da **502** con «Permission denied» en el log, es esto:
+
+```bash
+getsebool httpd_can_network_connect
+sudo setsebool -P httpd_can_network_connect 1
+```
+
 ---
 
 ## Comprobar

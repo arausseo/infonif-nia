@@ -7,7 +7,7 @@ Son dos piezas y van en dos máquinas distintas:
 
 | Pieza | Dónde | Qué es |
 |---|---|---|
-| API de Nia | servidor Linux (Debian 12) | Node 22, escucha en `:3000` |
+| API de Nia | servidor **Fedora** | Node 22, escucha en `:3000` |
 | Inclusión en el ASP | el IIS que ya existe | tres ficheros, ninguno nuevo en producción |
 
 El widget **no se instala**: lo sirve el propio API en `/widget.js`, así que
@@ -37,35 +37,84 @@ Stripe (la compra es la fase 5).
 
 ---
 
-## 1. La máquina del API
+## 1. La máquina del API (Fedora)
 
-Debian 12, 2 vCPU y 2 GB llegan de sobra para una demo.
+2 vCPU y 2 GB llegan de sobra para una demo.
 
 ```bash
-# Node 22 LTS
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt-get install -y nodejs redis-server git
-sudo systemctl enable --now redis-server
+# Node 22. Fedora 40+ ya lo trae; si no, NodeSource tiene repositorio RPM.
+sudo dnf install -y nodejs npm redis git
+node -v          # tiene que decir v22.x
 
-node -v    # debe decir v22.x
-redis-cli ping    # PONG
+# Si la versión del repo es anterior a la 22:
+#   curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+#   sudo dnf install -y nodejs
+
+# OJO: el servicio se llama `redis`, no `redis-server` como en Debian.
+sudo systemctl enable --now redis
+redis-cli ping   # PONG
 ```
 
 Redis guarda las conversaciones, la caché del resumen y el catálogo de campos.
 Es local: no hace falta exponerlo.
 
+### 1.1 SELinux y firewalld
+
+Esto es lo que más quebraderos da en Fedora y no existe en Debian. **Hazlo ahora,
+no cuando algo falle sin decir por qué.**
+
+```bash
+# ¿Está activo?
+getenforce        # normalmente: Enforcing
+```
+
+**Abrir el puerto 3000** para que el nginx y el IIS lleguen al servicio. Lo
+suyo es limitarlo a las IP que de verdad lo necesitan, no abrirlo a la red:
+
+```bash
+sudo firewall-cmd --permanent --new-zone=nia 2>/dev/null || true
+sudo firewall-cmd --permanent --zone=nia --add-source=192.168.210.0/24
+sudo firewall-cmd --permanent --zone=nia --add-port=3000/tcp
+sudo firewall-cmd --reload
+sudo firewall-cmd --zone=nia --list-all
+```
+
+**En la máquina del nginx** (que también es RHEL/Fedora — su
+`ssl_ciphers PROFILE=SYSTEM` lo delata), SELinux bloquea por defecto que nginx
+abra conexiones de salida. Como ya hace `proxy_pass` a `192.168.210.31:9000`,
+seguramente esté puesto; conviene confirmarlo:
+
+```bash
+getsebool httpd_can_network_connect
+# si dice --> off:
+sudo setsebool -P httpd_can_network_connect 1
+```
+
+Sin eso, el `proxy_pass` a Nia da **502** y en el log de nginx aparece
+«Permission denied» — que parece un problema de red y no lo es.
+
 ---
 
 ## 2. Desplegar el código
 
+Se clona y se compila como root, y al final se cede la propiedad. Hacerlo «como
+el usuario `nia`» no funciona: tiene `nologin` como shell y `sudo -u` la usa para
+lanzar el comando.
+
 ```bash
 sudo useradd -r -m -d /opt/nia -s /usr/sbin/nologin nia
-sudo -u nia git clone <URL-DEL-REPO> /opt/nia/app
+
+sudo git clone <URL-DEL-REPO> /opt/nia/app
 cd /opt/nia/app
 
-sudo -u nia npm install -g pnpm@11
-sudo -u nia pnpm install --frozen-lockfile
-sudo -u nia pnpm build
+# corepack viene con Node 22; evita instalar pnpm a mano.
+sudo corepack enable
+sudo corepack prepare pnpm@11 --activate
+
+sudo pnpm install --frozen-lockfile
+sudo pnpm build
+
+sudo chown -R nia:nia /opt/nia
 ```
 
 `pnpm build` hace tres cosas: genera los embeddings del CNAE (tarda unos minutos
@@ -85,8 +134,8 @@ ls -la packages/widget/dist/widget.js    # ~167 KB
 ## 3. Configurar
 
 ```bash
-sudo -u nia cp .env.example /opt/nia/app/.env
-sudo -u nia nano /opt/nia/app/.env
+sudo cp /opt/nia/app/.env.example /opt/nia/app/.env
+sudo nano /opt/nia/app/.env
 ```
 
 Lo que hay que rellenar para la prueba de concepto:
@@ -128,7 +177,7 @@ sudo chown nia:nia /opt/nia/app/.env
 ```ini
 [Unit]
 Description=Nia API
-After=network-online.target redis-server.service
+After=network-online.target redis.service
 Wants=network-online.target
 
 [Service]
@@ -180,7 +229,9 @@ llenarse tras el arranque: es normal que salga `"cargado": false` al principio.
 Hace tres cosas: pone el HTTPS, **cierra `/internal/` al exterior** y deja pasar
 el streaming sin bufferizarlo.
 
-`/etc/nginx/sites-available/nia`:
+En Fedora los sitios van en `/etc/nginx/conf.d/`, no en `sites-available`.
+
+`/etc/nginx/conf.d/nia.conf`:
 
 ```nginx
 server {
@@ -215,7 +266,6 @@ server {
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/nia /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -303,6 +353,9 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | Los pasos salen todos de golpe al final | `proxy_buffering off` no está aplicado. Es el paso 5. |
 | «no se pudo refrescar el catálogo» | La máquina no llega a `infonif.economia3.com`. No es fatal: usa la copia del repositorio, pero los precios pueden estar viejos (ADR-011). |
 | El primer mensaje tarda 30 s | Normal solo tras arrancar, mientras se llena la caché del resumen. A partir de ahí es instantáneo. |
+| 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
+| El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
+| `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
 
 ---
 
