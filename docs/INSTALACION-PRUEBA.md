@@ -187,15 +187,17 @@ con `pnpm embeddings --forzar`. Y eso **necesita ~4 GB de memoria**: con menos, 
 kernel mata el proceso a mitad y `pnpm` devuelve un escueto `Exit status 137`.
 Para una demo no hay ningún motivo para tocarlo.
 
-**El widget tiene que compilarse**: si `packages/widget/dist/widget.js` no
-existe, el API arranca igual pero registra un error y el `<script>` del portal
-dará 404.
-
-Comprobación:
+Compila **tres** paquetes, y los tres tienen que estar:
 
 ```bash
-ls -la packages/widget/dist/widget.js    # ~167 KB
+ls -la packages/semantica/dist/index.js   # el motor semántico
+ls -la packages/api/dist/servidor.js      # el API
+ls -la packages/widget/dist/widget.js     # ~167 KB
 ```
+
+Si falta el del widget, el API arranca igual pero registra un error y el
+`<script>` del portal dará 404. Si falta el de , el API ni
+arranca: muere con  buscando .
 
 ---
 
@@ -474,6 +476,7 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
+| `ERR_MODULE_NOT_FOUND` … `packages/semantica/src/corpus.js` | Falta compilar `@nia/semantica`. Ejecuta `pnpm -r build` otra vez y comprueba que existe `packages/semantica/dist/index.js`. |
 | `Exit status 137` compilando | Es el OOM killer. Estás regenerando embeddings en una máquina que no da para ello. No hace falta: los artefactos van versionados. Compila con `pnpm -r build`, que se salta ese paso. |
 | `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
 | `sudo su nia` → «This account is currently not available» | Correcto y esperado: ese usuario tiene `nologin`. No hay que entrar como él. |
