@@ -104,18 +104,72 @@ lanzar el comando.
 ```bash
 sudo useradd -r -m -d /opt/nia -s /usr/sbin/nologin nia
 
-sudo git clone <URL-DEL-REPO> /opt/nia/app
+# El código en /opt/nia/app. Con git clone si la máquina llega al repositorio;
+# si no, cualquier copia sirve (ver 2.1).
 cd /opt/nia/app
 
-# corepack viene con Node 22; evita instalar pnpm a mano.
-sudo corepack enable
-sudo corepack prepare pnpm@11 --activate
+# pnpm. OJO: el RPM de Node de Fedora NO trae corepack, va en su propio
+# paquete. `corepack: command not found` es esto, no que falte Node.
+sudo npm install -g pnpm@11
+#   alternativa:  sudo dnf install -y nodejs-corepack && sudo corepack enable
+pnpm -v
 
 sudo pnpm install --frozen-lockfile
 sudo pnpm build
 
 sudo chown -R nia:nia /opt/nia
 ```
+
+**`sudo su nia` no funciona y no tiene que funcionar.** Ese usuario tiene
+`nologin` como shell a propósito; «This account is currently not available» es la
+respuesta correcta. Se compila como root y se cede la propiedad al final.
+
+### 2.1 Si la máquina no llega al repositorio
+
+Da igual cómo lleguen los ficheros mientras lleguen todos. El árbol de fuentes
+sin `node_modules` ni compilados son **4,6 MB**:
+
+```bash
+# En una máquina que sí tenga el repositorio:
+tar --exclude=node_modules --exclude=.git --exclude=dist \
+    --exclude=dist-biblioteca --exclude=ds-bundle --exclude=.ds-sync \
+    -czf nia.tgz -C /ruta/al/repo .
+
+scp nia.tgz root@iciftools:/tmp/
+```
+
+```bash
+# En Fedora:
+sudo mkdir -p /opt/nia/app && sudo tar -xzf /tmp/nia.tgz -C /opt/nia/app
+```
+
+Y seguir con `pnpm install` normalmente. **Los embeddings del CNAE van dentro**
+(`packages/semantica/artefactos/*.bin`, 1 MB): están versionados y no hay que
+regenerarlos, así que esa parte del build no necesita red.
+
+Lo que sí necesita red es `pnpm install`, que baja de `registry.npmjs.org`. Si
+tampoco hay acceso ahí, hay que llevar el `node_modules` ya montado — y entonces
+**tiene que compilarse en Linux**, no en Windows: `@huggingface/transformers`
+trae binarios nativos por plataforma.
+
+### 2.2 Los 477 MB del modelo semántico
+
+`@huggingface/transformers` ocupa **477 MB** instalado y es, con diferencia, lo
+más pesado de todo. Está declarado como **dependencia opcional** a propósito: si
+falta, `prepararSemantica()` falla, el API se traga el error y `resolver_actividad`
+sigue funcionando con los términos curados. Se pierde la resolución semántica de
+sectores dichos de forma rara, no el producto.
+
+Si el disco o el ancho de banda aprietan:
+
+```bash
+sudo pnpm install --frozen-lockfile --no-optional
+```
+
+Además, el modelo en sí (~120 MB) se descarga de `huggingface.co` **la primera
+vez que hace falta**, no en el build. Si esa salida está cortada, el efecto es el
+mismo: se registra `no se pudo cargar el modelo semántico` y se sigue con el
+léxico. Conviene saberlo antes de la demo, no durante.
 
 `pnpm build` hace tres cosas: genera los embeddings del CNAE (tarda unos minutos
 la primera vez, se baja un modelo de ~120 MB), compila el API y compila el
@@ -406,6 +460,9 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
+| `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
+| `sudo su nia` → «This account is currently not available» | Correcto y esperado: ese usuario tiene `nologin`. No hay que entrar como él. |
+| En el log: «no se pudo cargar el modelo semántico» | No es fatal. O se instaló con `--no-optional`, o la máquina no llega a `huggingface.co`. Nia sigue con los términos curados (ver 2.2). |
 
 ---
 
