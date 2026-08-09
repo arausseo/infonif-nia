@@ -4,6 +4,7 @@ import { LineaDeTiempo } from "./componentes/LineaDeTiempo.js";
 import { Markdown } from "./componentes/Markdown.js";
 import { Sugerencias } from "./componentes/Sugerencias.js";
 import { Tarjetas } from "./componentes/tarjetas/index.js";
+import { useAltoAutomatico } from "./ganchos/useAltoAutomatico.js";
 import { useAutoscroll } from "./ganchos/useAutoscroll.js";
 import { useConversacion } from "./ganchos/useConversacion.js";
 import { useThrottle } from "./ganchos/useThrottle.js";
@@ -22,6 +23,9 @@ export function Widget() {
   const [pantallaCompleta, setPantallaCompleta] = useState(false);
   const [borrador, setBorrador] = useState("");
   const entrada = useRef<HTMLTextAreaElement | null>(null);
+
+  // La caja de texto crece con lo que se escribe; el tope lo pone el CSS.
+  useAltoAutomatico(entrada, borrador);
 
   const { turnos, enviar, enviando, cancelar, reiniciar } =
     useConversacion(configuracion);
