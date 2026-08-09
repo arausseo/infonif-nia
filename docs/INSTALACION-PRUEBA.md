@@ -196,8 +196,8 @@ ls -la packages/widget/dist/widget.js     # ~167 KB
 ```
 
 Si falta el del widget, el API arranca igual pero registra un error y el
-`<script>` del portal dará 404. Si falta el de , el API ni
-arranca: muere con  buscando .
+`<script>` del portal dará 404. Si falta el de `@nia/semantica`, el API ni
+arranca: muere con `ERR_MODULE_NOT_FOUND` buscando `corpus.js`.
 
 ---
 
