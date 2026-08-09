@@ -27,7 +27,12 @@ export function LineaDeTiempo({ turno }: { turno: Turno }) {
     if (estado === "error") setAbierta(true);
   }, [estado]);
 
-  if (turno.pasos.length === 0) return null;
+  // Sin pasos y sin turno en curso no hay nada que enseñar. PERO si el turno
+  // está en curso sí: entre que se envía y llega el primer paso pasan casi tres
+  // segundos —el modelo tiene que leer el prompt entero y decidir qué
+  // herramienta usar— y durante ese rato la pantalla se quedaba muerta. El
+  // `inicio` del stream llega a los ~450 ms; esto es lo que lo aprovecha.
+  if (turno.pasos.length === 0 && !turno.enCurso) return null;
 
   const desplegable = estado !== "durante";
 
@@ -41,6 +46,13 @@ export function LineaDeTiempo({ turno }: { turno: Turno }) {
         disabled={!desplegable}
       >
         <span className="nia-pasos__titulo">
+          {/*
+            El giro solo mientras no hay pasos. En cuanto llega el primero, el
+            suyo toma el relevo — dos cosas girando a la vez es ruido.
+          */}
+          {estado === "durante" && turno.pasos.length === 0 && (
+            <span className="nia-spinner" aria-hidden="true" />
+          )}
           {estado === "durante" ? "Trabajando…" : resumenDeLaLinea(turno)}
         </span>
         {desplegable && (
@@ -53,7 +65,7 @@ export function LineaDeTiempo({ turno }: { turno: Turno }) {
         )}
       </button>
 
-      {abierta && (
+      {abierta && turno.pasos.length > 0 && (
         <ol className="nia-pasos__lista">
           {turno.pasos.map((paso) => (
             <li key={paso.id} className={`nia-paso nia-paso--${paso.estado}`}>

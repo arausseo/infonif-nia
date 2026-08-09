@@ -351,6 +351,13 @@ button {
   cursor: default;
 }
 
+/* Alinea el giro con «Trabajando…» mientras no hay ningún paso todavía. */
+.nia-pasos__titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nia-chevron {
   display: inline-block;
   transition: transform 120ms ease;
@@ -601,9 +608,11 @@ button {
   flex: 1;
   min-height: 40px;
   /* El tope. Pasado esto crece la barra, no la caja: el cajón no se come
-     la conversación. Lo aplica useAltoAutomatico. */
+     la conversación. El overflow lo enciende useAltoAutomatico solo al
+     llegar aquí — fijo, Windows dibuja su barra con flechas en una caja de
+     una línea. */
   max-height: 120px;
-  overflow-y: auto;
+  overflow-y: hidden;
   padding: 9px 11px;
   border: 1px solid var(--nia-borde);
   border-radius: 10px;

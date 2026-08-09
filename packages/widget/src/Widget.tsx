@@ -129,7 +129,7 @@ export function Widget() {
               className="nia-compositor__entrada"
               value={borrador}
               rows={1}
-              placeholder="Pregunta por una empresa o describe el listado que buscas"
+              placeholder="¿Qué empresa o qué listado buscas?"
               onChange={(evento) => setBorrador(evento.target.value)}
               onKeyDown={(evento) => {
                 // Enter envía; Mayús+Enter hace salto de línea.
