@@ -74,20 +74,62 @@ getenforce        # normalmente: Enforcing
 suyo es limitarlo a las IP que de verdad lo necesitan, no abrirlo a la red:
 
 ```bash
-sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.210.0/24" port port="3000" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-port=3000/tcp
 sudo firewall-cmd --reload
-sudo firewall-cmd --list-rich-rules
+sudo firewall-cmd --list-ports
 ```
 
-Una regla enriquecida y no una zona propia: es una sola orden y no depende de que
-la asignación de zona por origen funcione. Queda igual de restringida — solo esa
-red llega al 3000.
+Sin `--zone`: va a la zona por defecto, que es la que gobierna la interfaz. No
+hace falta crear una zona propia — se intentó y solo añadía piezas que podían no
+encajar.
 
-**Cómo se reconoce que falta esto.** Desde la máquina del nginx, `ping` a la de
-Nia funciona pero `telnet 192.168.210.33 3000` se queda colgado hasta agotar el
-tiempo. Ese matiz es el diagnóstico: si no hubiera nada escuchando, el rechazo
-sería inmediato («connection refused»). Un tiempo agotado significa que alguien
-está tirando los paquetes.
+En una instalación de Fedora Server con otros servicios ya publicados es probable
+que el 3000 **ya esté abierto**. Míralo antes de tocar nada:
+
+```bash
+sudo firewall-cmd --list-all --zone=$(sudo firewall-cmd --get-default-zone)
+```
+
+### 1.2 Cuando el puerto está abierto y aun así no se llega
+
+Si desde la otra máquina `ping` funciona pero el 3000 se queda colgado hasta
+agotar el tiempo, **el sospechoso no es firewalld**: rechaza, no descarta en
+silencio, así que habría contestado «connection refused» al instante. Un tiempo
+agotado es alguien tirando los paquetes sin contestar, y eso suele estar en la
+red, no en el servidor.
+
+Primero, descartar que sea el propio servicio. En la máquina de Nia, con la IP de
+red y no con `localhost`:
+
+```bash
+ss -lntp | grep 3000
+curl -sS -m 5 http://192.168.210.33:3000/salud
+```
+
+Si eso responde, el servicio está bien y el problema es el camino. Para separar
+red de cortafuegos, prueba desde la otra máquina contra un puerto que sepas
+abierto —el 22— y contra una máquina que sepas alcanzable:
+
+```bash
+timeout 5 bash -c '</dev/tcp/192.168.210.33/22'   || echo "el .33 no se alcanza"
+timeout 5 bash -c '</dev/tcp/192.168.210.31/9000' || echo "el .31 tampoco"
+```
+
+Si el 22 del .33 tampoco responde, el puerto es irrelevante: hay un ACL entre
+segmentos. Suele pasar cuando la máquina del nginx solo tenía permiso para hablar
+con la del buscador y Nia va en otra distinta. Salidas, de mejor a peor: que
+abran ese camino; instalar Nia en la máquina que el nginx ya alcanza; o publicarla
+por el IIS, que además deja el widget en el mismo origen que el portal y quita el
+CORS de en medio.
+
+Y la prueba que no admite discusión, en la máquina de Nia mientras se intenta
+conectar desde la otra:
+
+```bash
+sudo tcpdump -ni any port 3000
+```
+
+Llegan los SYN y no hay respuesta → es local. No llega nada → es la red.
 
 **En la máquina del nginx** (que también es RHEL/Fedora — su
 `ssl_ciphers PROFILE=SYSTEM` lo delata), SELinux bloquea por defecto que nginx
@@ -562,7 +604,7 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
-| `telnet IP 3000` agota el tiempo pero `ping` va | firewalld en la maquina de Nia. Tiempo agotado (no «refused») = paquetes descartados. Ver 1.1. |
+| `telnet IP 3000` agota el tiempo pero `ping` va | Probablemente NO es firewalld: rechaza, no descarta. Ver 1.2. |
 | 502 en `/nia/salud` | nginx no alcanza el 3000: cortafuegos, o `httpd_can_network_connect` en off en la maquina del nginx. |
 | 404 en `/nia/salud` | A nginx le falta la `location /nia/`. No es el cortafuegos. |
 | `fetch failed` contra bbdd-api en centesimas de segundo | No es la red: es la cadena TLS incompleta de ese host. Ver 3.1. |
