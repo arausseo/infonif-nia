@@ -238,6 +238,69 @@ sudo chmod 600 /opt/nia/app/.env
 sudo chown nia:nia /opt/nia/app/.env
 ```
 
+### 3.1 La cadena TLS de `bbdd-api.infonif.es`
+
+Si en el arranque aparece esto:
+
+```
+no se pudo precargar el resumen
+  ErrorInfonif: … /buscador/resumen: TypeError: fetch failed
+```
+
+y falla en centésimas de segundo (no es un tiempo de espera agotado), casi seguro
+es la cadena de certificados. Compruébalo:
+
+```bash
+curl -sS -m 15 -o /dev/null -w "%{http_code}\n" \
+  https://bbdd-api.infonif.es/api/buscador/resumen -H "apikey: TU_APIKEY"
+```
+
+Si dice `SSL certificate problem: unable to get local issuer certificate`, el
+servidor está mandando **solo su certificado final, sin el intermedio**. Los
+navegadores lo disimulan —se buscan el intermedio por su cuenta— pero curl y Node
+no. Se ve así:
+
+```bash
+openssl s_client -connect bbdd-api.infonif.es:443 \
+  -servername bbdd-api.infonif.es < /dev/null 2>/dev/null \
+  | grep -E "^ *[0-9] s:|Verify return code"
+```
+
+Con la cadena rota sale un único ` 0 s:` y `Verify return code: 21`.
+
+**El arreglo de verdad** es que quien administre esa máquina sirva la cadena
+completa (`fullchain`, no solo el certificado). Arregla a todos los clientes a la
+vez y conviene pedirlo.
+
+**Mientras tanto**, se le da a Nia el intermedio que falta —sin tocar en qué
+confía el resto del sistema:
+
+```bash
+# El emisor está en el propio certificado:
+#   openssl … | openssl x509 -noout -issuer -ext authorityInfoAccess
+curl -sS -o /tmp/r36.crt \
+  http://crt.sectigo.com/SectigoPublicServerAuthenticationCADVR36.crt
+sudo openssl x509 -inform DER -in /tmp/r36.crt -out /opt/nia/sectigo-r36.pem
+
+# Tiene que coincidir con el `issuer` del certificado del servidor:
+openssl x509 -in /opt/nia/sectigo-r36.pem -noout -subject
+```
+
+Y en el servicio (paso 4):
+
+```ini
+Environment=NODE_EXTRA_CA_CERTS=/opt/nia/sectigo-r36.pem
+```
+
+Se prefiere `NODE_EXTRA_CA_CERTS` a `update-ca-trust` porque queda acotado al
+proceso de Nia. **Lo que no se hace nunca es `NODE_TLS_REJECT_UNAUTHORIZED=0`**:
+apaga la verificación de TLS del proceso entero, y ese proceso también habla con
+`api.anthropic.com` llevando una clave de API.
+
+El certificado caduca en enero de 2027. Cuando lo renueven, si siguen sin servir
+la cadena, esto vuelve — y el `.pem` de aquí puede quedarse obsoleto si cambian
+de intermedio.
+
 ---
 
 ## 4. Servicio systemd
@@ -256,6 +319,9 @@ User=nia
 WorkingDirectory=/opt/nia/app
 EnvironmentFile=/opt/nia/app/.env
 ExecStart=/usr/bin/node packages/api/dist/servidor.js
+
+# Solo si la cadena TLS de bbdd-api.infonif.es sigue incompleta (ver 3.1):
+#Environment=NODE_EXTRA_CA_CERTS=/opt/nia/sectigo-r36.pem
 Restart=always
 RestartSec=5
 
@@ -476,6 +542,7 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
 | El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
+| `fetch failed` contra bbdd-api en centesimas de segundo | No es la red: es la cadena TLS incompleta de ese host. Ver 3.1. |
 | `ERR_MODULE_NOT_FOUND` … `packages/semantica/src/corpus.js` | Falta compilar `@nia/semantica`. Ejecuta `pnpm -r build` otra vez y comprueba que existe `packages/semantica/dist/index.js`. |
 | `Exit status 137` compilando | Es el OOM killer. Estás regenerando embeddings en una máquina que no da para ello. No hace falta: los artefactos van versionados. Compila con `pnpm -r build`, que se salta ese paso. |
 | `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
