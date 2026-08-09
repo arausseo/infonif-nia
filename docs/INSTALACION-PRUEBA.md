@@ -292,6 +292,18 @@ Y en el servicio (paso 4):
 Environment=NODE_EXTRA_CA_CERTS=/opt/nia/sectigo-r36.pem
 ```
 
+**Cuidado con dónde se pone.** Esta variable la lee **Node al arrancar**, no la
+aplicación. El `.env` lo carga `dotenv` ya dentro del proceso, así que ahí llega
+tarde. Con systemd da igual —`EnvironmentFile=` la exporta antes de lanzar el
+proceso— pero probando a mano hay que ponerla delante:
+
+```bash
+NODE_EXTRA_CA_CERTS=/opt/nia/sectigo-r36.pem node packages/api/dist/servidor.js
+```
+
+Si se prueba a mano sin eso y se ve el mismo `fetch failed`, no es que el
+certificado esté mal: es que Node ni lo ha mirado.
+
 Se prefiere `NODE_EXTRA_CA_CERTS` a `update-ca-trust` porque queda acotado al
 proceso de Nia. **Lo que no se hace nunca es `NODE_TLS_REJECT_UNAUTHORIZED=0`**:
 apaga la verificación de TLS del proceso entero, y ese proceso también habla con
