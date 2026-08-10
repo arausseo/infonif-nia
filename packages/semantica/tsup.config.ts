@@ -14,14 +14,24 @@ import { defineConfig } from "tsup";
  * en vez de empaquetarse dentro del API: desde `packages/api/dist/` esa ruta
  * relativa apuntaría a `packages/api/artefactos`, que no existe.
  */
-export default defineConfig({
+export default defineConfig((opciones) => ({
   entry: ["src/index.ts"],
   format: ["esm"],
   target: "node22",
   platform: "node",
   sourcemap: true,
-  clean: true,
+
+  /**
+   * En `--watch` NO se limpia, y esto importa más de lo que parece.
+   *
+   * `pnpm dev` arranca todos los paquetes a la vez. Si aquí se borra `dist/`
+   * al empezar, hay una ventana —corta, pero real— en la que el API ya está
+   * levantando y `@nia/semantica` no existe: ERR_MODULE_NOT_FOUND al importar.
+   * Gana quien arranque antes, que es la peor clase de fallo: intermitente y
+   * dependiente de lo rápida que sea la máquina.
+   */
+  clean: !opciones.watch,
   // El runtime de ONNX es dependencia opcional del API y se carga con un import
   // dinámico. Empaquetarlo aquí lo volvería obligatorio.
   external: ["@huggingface/transformers"],
-});
+}));
