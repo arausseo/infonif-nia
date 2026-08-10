@@ -8,6 +8,7 @@ import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { estadoCatalogo, prepararCatalogo } from "./datos/catalogo.js";
+import { prepararSemantica } from "./datos/semantica.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
 import { registrarMint } from "./rutas/mint.js";
@@ -74,6 +75,12 @@ async function arrancar(): Promise<void> {
   // Así el primer usuario no paga los 26 segundos ni con Redis vacío.
   precargarResumen();
   void prepararCatalogo();
+
+  // El modelo semantico tarda ~30 s en cargar y es CPU en el hilo principal.
+  // Cargandolo aqui, ese coste lo paga el arranque y no la primera consulta:
+  // antes bloqueaba el bucle de eventos en mitad de un turno y se llevaba por
+  // delante las conexiones abiertas contra Infonif («fetch failed»).
+  void prepararSemantica().catch(() => undefined);
 }
 
 /** `true` solo si este módulo es el que se ha ejecutado, no cuando lo importa un test. */

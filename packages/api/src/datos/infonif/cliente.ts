@@ -61,10 +61,27 @@ export async function infonif<T = unknown>(
     if (error instanceof Error && error.name === "AbortError") {
       throw new ErrorInfonif(504, ruta, `sin respuesta en ${tiempoLimiteMs} ms`);
     }
-    throw new ErrorInfonif(0, ruta, String(error));
+    // `TypeError: fetch failed` no dice absolutamente nada: el motivo real
+    // —socket muerto, DNS, certificado— vive en `cause`, a veces anidado.
+    // Sin desenrollarlo, diagnosticar un fallo de red es adivinar.
+    throw new ErrorInfonif(0, ruta, `${String(error)}${causaDe(error)}`);
   } finally {
     clearTimeout(temporizador);
   }
+}
+
+/** Desenrolla la cadena de `cause` de un error de red y la deja en una linea. */
+function causaDe(error: unknown): string {
+  const partes: string[] = [];
+  let causa: unknown = (error as { cause?: unknown }).cause;
+
+  for (let nivel = 0; causa && nivel < 4; nivel++) {
+    const c = causa as { code?: string; message?: string };
+    partes.push([c.code, c.message ?? String(causa)].filter(Boolean).join(" "));
+    causa = (causa as { cause?: unknown }).cause;
+  }
+
+  return partes.length > 0 ? ` (${partes.join(" <- ")})` : "";
 }
 
 export interface EstadoInfonif {
