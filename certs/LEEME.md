@@ -34,20 +34,34 @@ debería estar enviando.
 
 ## Cómo se usa
 
-```bash
-NODE_EXTRA_CA_CERTS=./certs/sectigo-r36.pem pnpm dev
+**La ruta tiene que ser absoluta.** `pnpm dev` arranca cada paquete con su propio
+directorio de trabajo, así que un `./certs/...` se busca dentro de `packages/api`
+y de `demo`, donde no existe. Node no falla por eso: solo avisa y sigue sin el
+certificado, con lo que el problema reaparece más tarde y parece otra cosa.
+
+```
+Warning: Ignoring extra certs from `./certs/sectigo-r36.pem`, load failed:
+error:80000003:system library::No such process
 ```
 
-En Windows:
+PowerShell:
 
 ```powershell
-$env:NODE_EXTRA_CA_CERTS = "$PWD\certs\sectigo-r36.pem"
+$env:NODE_EXTRA_CA_CERTS = "C:\apu\gedesco\NIA\certs\sectigo-r36.pem"
 pnpm dev
 ```
 
-Ojo: **esta variable la lee Node al arrancar, no la aplicación**, así que en el
-`.env` llega tarde. Con systemd sí vale porque `EnvironmentFile=` la exporta
-antes de lanzar el proceso.
+Linux:
+
+```bash
+NODE_EXTRA_CA_CERTS=/opt/nia/app/certs/sectigo-r36.pem pnpm dev
+```
+
+Si no sale ningún aviso, se ha cargado.
+
+Ojo también con **dónde** se pone: esta variable la lee Node al arrancar, no la
+aplicación, así que en el `.env` llega tarde. Con systemd sí vale porque
+`EnvironmentFile=` la exporta antes de lanzar el proceso.
 
 ## Esto es un parche
 

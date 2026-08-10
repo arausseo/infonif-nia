@@ -612,6 +612,7 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | `Exit status 137` compilando | Es el OOM killer. Estás regenerando embeddings en una máquina que no da para ello. No hace falta: los artefactos van versionados. Compila con `pnpm -r build`, que se salta ese paso. |
 | `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
 | `sudo su nia` → «This account is currently not available» | Correcto y esperado: ese usuario tiene `nologin`. No hay que entrar como él. |
+| `Warning: Ignoring extra certs ... No such process` | La ruta de `NODE_EXTRA_CA_CERTS` es relativa. Tiene que ser absoluta: cada paquete corre con su propio directorio. Node solo avisa y sigue SIN el certificado. |
 | En el log: «no se pudo cargar el modelo semántico» | No es fatal. O se instaló con `--no-optional`, o la máquina no llega a `huggingface.co`. Nia sigue con los términos curados (ver 2.2). |
 
 ---
