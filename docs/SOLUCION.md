@@ -232,6 +232,146 @@ conversaciones.
 
 ---
 
+## Potencial: el resto de APIs de Infonif
+
+Todo lo descrito hasta aquí se apoya en **una sola fuente**: el API REST que
+alimenta al buscador de bases de datos. Es la que hacía falta para la prueba de
+concepto, pero no es la única que existe.
+
+`icif-apigw` es un API Gateway sobre AWS (Serverless, Node) con **31 endpoints**
+ya en producción, agrupados en tres familias. Nia todavía no habla con ninguno.
+Merece la pena mirar qué desbloquearía cada una, porque el coste de integrarlas
+es bajo y lo que abren no lo es.
+
+### `/credito` — la pieza que falta para vender
+
+Seis endpoints: consultar créditos, agregar créditos, historial, consumo del mes,
+saldo por producto y generación del 460.
+
+Esto es, literalmente, **la fase 5 de Nia**. Hoy el abono de créditos es un
+apaño: la conversación sabe cotizar y sabe preparar una compra, pero quien
+descuenta el saldo es un módulo de mentira. Aquí está el de verdad, con su
+historial y su contabilidad.
+
+Integrarlo convierte a Nia de «sabe cuánto cuesta» en «lo ha comprado», que es
+donde está el valor. Y no habría que inventar el modelo de cobro: es el mismo que
+ya usa el portal, con las mismas reglas y los mismos límites.
+
+### `/dato` — de contar empresas a conocerlas
+
+Siete endpoints: razón social por NIF, perfil de empresa, actos del BORME,
+cargos, balance resumido, empresas del grupo y depósitos disponibles.
+
+Nia hoy cuenta segmentos y cotiza listados. Con esto respondería a preguntas que
+ahora no puede tocar:
+
+- «¿Quién administra esta empresa?» → cargos
+- «¿Ha cambiado algo últimamente?» → actos del BORME
+- «¿De quién depende?» → empresas del grupo
+- «¿De qué años hay cuentas?» → depósitos disponibles
+
+Son preguntas que un usuario hace de forma natural en mitad de una conversación
+sobre una empresa, y que hoy obligan a salirse de ella.
+
+### `/producto` — entregar lo que se compra
+
+Diecisiete endpoints: solicitar y obtener RAI, informes, depósitos en PDF,
+titularidad real, partidas del depósito y el bloque RETIR (socios, depósitos,
+declaración de titularidad real).
+
+Con esta familia el ciclo se cierra dentro del chat: el usuario pregunta, Nia
+recomienda el producto, lo compra y **lo entrega**, sin mandarlo a otra pantalla.
+
+Ojo con un matiz que ya está en las reglas del proyecto: que Nia pueda entregar
+un Informe de Riesgo no significa que pueda opinar sobre el riesgo. El informe lo
+produce el sistema; la valoración sigue sin ser criterio del modelo.
+
+---
+
+## Dónde encajaría todo esto
+
+Aquí es donde la separación de capas deja de ser una preferencia estética y
+empieza a pagar.
+
+```
+agente/  ──►  datos/  ──┬──►  bbdd-api.infonif.es     (integrado)
+                        ├──►  icif-apigw /dato        (pendiente)
+                        ├──►  icif-apigw /producto    (pendiente)
+                        └──►  icif-apigw /credito     (pendiente)
+```
+
+Un API nuevo es **un adaptador más en `datos/`**. El bucle del agente no cambia,
+el protocolo SSE no cambia, el widget no cambia. Lo único que crece es el
+catálogo de herramientas, y cada herramienta nueva es un fichero con su esquema
+Zod y su ejecutor.
+
+Las reglas siguen aplicando sin excepción: los derechos se verifican dentro de la
+herramienta, el precio se calcula en servidor y el agente sigue sin ejecutar
+cobros. Añadir una fuente no añade una vía de escape.
+
+### Lo que hay que resolver antes
+
+Tres cosas, y ninguna es de diseño:
+
+**Autenticación.** No he encontrado configuración de autorizador ni de clave de
+API en el `serverless.yml`. Hay que confirmar cómo se acredita quien llama y si
+ese mecanismo encaja con el puente de sesión que ya usa Nia.
+
+**Identidad del usuario.** Los endpoints de crédito operan sobre un usuario
+concreto. Hay que verificar que el identificador que viaja en el token de Nia es
+el mismo que espera el gateway.
+
+**Entorno.** El gateway está en AWS; Nia, en la red interna del cliente. Hay que
+comprobar la salida y la latencia, que no es lo mismo llamar a un servicio de la
+LAN que a uno en la nube.
+
+---
+
+## Un canal más: MCP
+
+Existe ya un análisis de viabilidad (`icif-apigw/docs/mcp-infonif-analisis-cliente.md`)
+para exponer estas APIs como servidor **MCP**, de modo que asistentes de terceros
+—Claude Desktop, Cursor, Copilot, agentes propios de clientes— consulten la
+información mercantil de Infonif como herramientas.
+
+Conviene señalar que **eso y Nia no compiten: se complementan**, y que la
+decisión de arquitectura de este proyecto ya lo anticipó. La ADR-009 descartó MCP
+como protocolo *interno* —entre `agente/` y `datos/` no aporta nada, son el mismo
+equipo y el mismo despliegue— pero dejó apuntado el MCP **público** como
+oportunidad de fase 2.
+
+Son dos caras de la misma capa de datos:
+
+| | Nia | MCP |
+|---|---|---|
+| Quién lo usa | el cliente final, en el portal | otro agente, en su herramienta |
+| Qué aporta | conversación guiada y venta | acceso programático estándar |
+| Monetización | créditos y euros, la de siempre | consumo medido por clave |
+
+Lo que se construya en `datos/` para Nia sirve a los dos. Y al revés: cada
+endpoint que se integre acerca las dos cosas a la vez.
+
+---
+
+## Prioridad sugerida
+
+Si hubiera que ordenarlo, este sería el orden por relación entre valor y
+esfuerzo:
+
+1. **`/credito`** — cierra el ciclo de venta, que es lo que convierte la demo en
+   producto. Es además donde hoy hay un apaño que habrá que quitar de todas
+   formas.
+2. **`/dato`** — el salto más visible en la conversación, y el de menor riesgo:
+   son consultas de lectura, sin dinero de por medio.
+3. **`/producto`** — el de más recorrido comercial, pero también el que más
+   depende de tener resuelto lo anterior.
+
+Nada de esto está comprometido para la prueba de concepto. Se documenta porque la
+pregunta «¿y esto hasta dónde llega?» se va a hacer, y la respuesta corta es: la
+arquitectura no es el límite.
+
+---
+
 ## Estado
 
 Prueba de concepto funcional. Consulta, segmentación y cotización funcionan de
