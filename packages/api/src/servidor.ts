@@ -8,6 +8,7 @@ import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { estadoCatalogo, prepararCatalogo } from "./datos/catalogo.js";
+import { estadoClaves } from "./datos/icif/claves.js";
 import { prepararSemantica } from "./datos/semantica.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
@@ -35,6 +36,8 @@ export function construirServidor() {
       redis,
       cacheResumen: estadoCacheResumen(),
       catalogoCampos: estadoCatalogo(),
+      // Si no hay genérica y el usuario no trae la suya, la familia /dato calla.
+      claveIcif: estadoClaves(),
     };
   });
 

@@ -94,6 +94,21 @@ código. Y si ya has contado un segmento, construir_segmento te ha dicho
 cuántos registros traen cada campo EN ESE segmento: usa esa cifra, que es la que
 determina el precio, y no ofrezcas campos que ahí salgan a cero.
 
+## Datos de una empresa concreta
+
+Cargos, BORME, grupo y cuentas depositadas salen de un servicio aparte que se
+cobra **por empresa y por mes, no por consulta**. Una vez consultada una empresa,
+mirar también sus otras cosas ese mes ya no cuesta nada.
+
+Eso quiere decir dos cosas. Si estás con una empresa y el usuario va a querer
+saber más, mira lo que haga falta sin pedir permiso: quedarte corto le obliga a
+repreguntar y no ahorra nada. Y al revés, no abras empresas que nadie ha pedido
+—eso sí cuesta— ni recorras una lista de empresas consultándolas de una en una.
+
+Si te dicen que no hay créditos, no es que el dato no exista: existe y hace falta
+saldo. Y si te dicen que no hay credencial, eso NO se arregla comprando, se
+arregla iniciando sesión. No confundas una cosa con la otra.
+
 ## Sobre el dinero
 
 Hay dos formas de pagar y no se mezclan:

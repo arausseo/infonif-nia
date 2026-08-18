@@ -23,6 +23,34 @@ const EsquemaEntorno = z.object({
   INFONIF_API_URL: z.string().url().default("https://bbdd-api.infonif.es/api"),
   INFONIF_API_KEY: z.string().optional(),
   INFONIF_TIEMPO_LIMITE_MS: z.coerce.number().int().positive().default(45_000),
+
+  /**
+   * API de productos y datos de Infonif (`icif-apigw`). Es OTRO servicio, con
+   * otra autenticación: cabecera `ICIF-APIKEY` en vez de `apikey`.
+   *
+   * Y con una diferencia que importa más: **cada llamada consume un crédito**
+   * del titular de la clave. No es una lectura gratuita.
+   */
+  ICIF_API_URL: z.string().url().default("https://api.infonif.es/v1"),
+  /**
+   * Clave de respaldo, para cuando el usuario conectado no tiene la suya.
+   *
+   * Ojo con lo que significa: los créditos que se gastan con ella **los paga
+   * Gedesco**, no el usuario. Por eso se puede apagar (`ICIF_PERMITIR_GENERICA`)
+   * y por eso el uso queda registrado.
+   */
+  ICIF_APIKEY_GENERICA: z.string().optional(),
+  /**
+   * Si un usuario SIN clave propia puede gastar de la genérica. En false, sin
+   * clave propia no hay dato: la herramienta lo dice y no llama a nadie.
+   */
+  ICIF_PERMITIR_GENERICA: booleano.default("true"),
+  ICIF_TIEMPO_LIMITE_MS: z.coerce.number().int().positive().default(20_000),
+  /**
+   * Cuánto vive en Redis la clave de un usuario. Se renueva en cada `mint`, así
+   * que en la práctica dura lo que dure su sesión en el portal.
+   */
+  ICIF_CLAVE_TTL_SEGUNDOS: z.coerce.number().int().positive().default(43_200),
   /**
    * Cuánto se considera fresco el resumen de facetas. Sus datos cambian una vez
    * al día, así que 24 h. Pasado ese tiempo NO se descarta: se sigue sirviendo

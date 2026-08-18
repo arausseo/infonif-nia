@@ -4,6 +4,10 @@ import type { Herramienta } from "../tipos.js";
 import buscarEmpresa from "./buscar_empresa.js";
 import comparaEmpresas from "./comparar_empresas.js";
 import construirSegmento from "./construir_segmento.js";
+import consultarActosBorme from "./consultar_actos_borme.js";
+import consultarCargos from "./consultar_cargos.js";
+import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
+import consultarEmpresasGrupo from "./consultar_empresas_grupo.js";
 import consultarSaldo from "./consultar_saldo.js";
 import cotizar from "./cotizar.js";
 import obtenerFichaPublica from "./obtener_ficha_publica.js";
@@ -23,6 +27,15 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   resolverActividad,
   construirSegmento,
   comparaEmpresas,
+
+  // Familia /dato del gateway. Van juntas y al final a propósito: comparten
+  // credencial, comparten coste (1 crédito por NIF y mes) y comparten la forma
+  // de fallar. Lo que las une no es el tema, es de dónde salen.
+  consultarCargos,
+  consultarActosBorme,
+  consultarEmpresasGrupo,
+  consultarDepositosDisponibles,
+
   consultarSaldo,
   recomendarProducto,
   cotizar,

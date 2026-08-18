@@ -15,6 +15,9 @@ export default tseslint.config(
       "ds-bundle/**",
       ".design-sync/.cache/**",
       ".design-sync/overrides/**",
+      // Generador del .docx: script CommonJS suelto, se ejecuta a mano con el
+      // paquete `docx` que no es dependencia del proyecto. No es del monorepo.
+      "docs/generar-docx.js",
     ],
   },
   js.configs.recommended,
