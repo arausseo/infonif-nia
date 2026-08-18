@@ -597,6 +597,23 @@ Al abrir la página tiene que aparecer una línea `token acuñado` con el
 | No aparece la píldora | ¿404 en `widget.js`? Casi siempre falta el `/nia` en `NIA_BASE_PUBLICA`, o sobra la barra final. Comprueba también que `packages/widget/dist/widget.js` exista en el servidor. |
 | Todo da 404 bajo `/nia/` pero el servicio responde en su :3000 | Falta la barra final en `proxy_pass http://nia_api/;`. Sin ella nginx reenvía `/nia/v1/conversar` tal cual y el API no conoce esa ruta. |
 | Aparece pero al enviar no pasa nada | Consola del navegador. Casi siempre es CORS: `ORIGENES_PERMITIDOS` tiene que llevar el origen exacto del portal, con `https://` y sin barra final. |
+
+**Por qué esto se escapa a simple vista.** El preflight responde `204` tanto si
+el origen casa como si no — Fastify solo omite una cabecera, no cambia el código
+de estado. Así que curear con `-o /dev/null -w "%{http_code}"` no sirve de nada
+aquí: hay que mirar si `access-control-allow-origin` viene en la respuesta, no
+si respondió.
+
+```bash
+curl -sSi -X OPTIONS https://TU-HOST/nia/v1/conversar   -H "Origin: https://EL-PORTAL-EXACTO"   -H "Access-Control-Request-Method: POST" | grep -i access-control-allow-origin
+```
+
+Si no sale nada, el origen no está casando — aunque el `.env` "se vea bien" al
+leerlo por encima. Pasó en el entorno de prueba: `ORIGENES_PERMITIDOS` llevaba el
+dominio correcto pero con una barra final (`https://…com/`), y un navegador
+**nunca** manda esa barra en la cabecera `Origin` — es siempre
+`esquema://host[:puerto]`, sin ruta. La comparación es por igualdad exacta, así
+que esa barra bastaba para que no casara nunca, con cualquier dominio.
 | Nia no reconoce al usuario | `journalctl` sin línea `token acuñado` → el secreto no coincide, o el IIS no llega a `NIA_BASE_INTERNA`. Pruébalo desde el propio IIS. |
 | Los pasos salen todos de golpe al final | `proxy_buffering off` no está aplicado. Es el paso 5. |
 | «no se pudo refrescar el catálogo» | La máquina no llega a `infonif.economia3.com`. No es fatal: usa la copia del repositorio, pero los precios pueden estar viejos (ADR-011). |
