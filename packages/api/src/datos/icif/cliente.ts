@@ -8,21 +8,32 @@ import { resolverClave, type OrigenClave } from "./claves.js";
  *
  * Es un servicio distinto del buscador y hay que tratarlo como tal:
  *
+ * **Van DOS cabeceras, y son dos capas distintas.** Verificado contra el API
+ * real, que es la única forma de saberlo: sobre `/dato/obtener-perfil-empresa`,
+ *
+ * - solo `x-api-key`   → 401 «Falta API Key» — no pasa de la puerta de la app
+ * - solo `ICIF-APIKEY` → 403 «No tiene créditos» — pasó, y llegó al saldo
+ * - las dos            → 403 «No tiene créditos»
+ *
+ * O sea: `x-api-key` es la puerta de AWS y `ICIF-APIKEY` es la cuenta de
+ * créditos de su aplicación (su `apiKey()` busca `icif-apikey` en las
+ * cabeceras). La familia `/buscador` solo pide la primera; `/dato` pide la
+ * segunda. Se mandan ambas: hoy `/dato` no exige la de AWS, pero si algún día
+ * activan el plan de uso, mandarla ya evita una caída sin motivo aparente.
+ *
  * | | buscador (`bbdd-api`) | gateway (`api.infonif.es/v1`) |
  * |---|---|---|
- * | Cabecera | `apikey` | `ICIF-APIKEY` |
+ * | Cabecera | `apikey` | `ICIF-APIKEY` + `x-api-key` |
  * | Clave | pública, del sitio | del usuario, **gasta créditos** |
  * | Método | GET y POST | POST siempre, NIF en el cuerpo |
  * | Sin datos | 200 con lista vacía | **204 sin cuerpo** |
  *
- * La diferencia que gobierna todo el diseño es la tercera fila: **cada llamada
- * que devuelve 200 descuenta un crédito** del titular de la clave. Un agente que
- * consulta «por si acaso» está gastando dinero de alguien. Por eso ninguna
- * herramienta de esta familia se llama de forma especulativa, todas declaran su
- * coste, y el 403 no se trata como un error sino como una respuesta prevista.
+ * Y la cuarta fila esconde lo que gobierna el diseño: esto **gasta saldo**. No
+ * por llamada —es 1 crédito por NIF y mes, ver `dato.ts`— pero sí por empresa
+ * nueva. Por eso el 403 no se trata como un error sino como una respuesta
+ * prevista: significa «el dato existe, falta saldo», que es una frase muy
+ * distinta de «no hay dato».
  */
-
-const RUTAS_SIN_CREDITO = new Set<string>();
 
 /** Qué pasó, en términos que una herramienta puede convertir en una frase. */
 export type ResultadoIcif<T> =
@@ -70,7 +81,9 @@ export async function icif<T = unknown>(
       headers: {
         accept: "application/json",
         "content-type": "application/json",
+        // Las dos, a propósito. Ver la cabecera del módulo: son capas distintas.
         "ICIF-APIKEY": clave.apiKey,
+        "x-api-key": clave.apiKey,
       },
       body: JSON.stringify(cuerpo),
       signal: control.signal,
@@ -81,7 +94,6 @@ export async function icif<T = unknown>(
 
     // 204: la empresa existe pero no hay nada de esto. No cobran por ello.
     if (respuesta.status === 204) {
-      RUTAS_SIN_CREDITO.add(ruta);
       return { estado: "sinDatos", origenClave: clave.origen };
     }
 

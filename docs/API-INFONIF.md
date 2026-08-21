@@ -766,3 +766,77 @@ Queda, y ninguna bloquea la Fase 1:
 6. **Cómo se compra un plan desde Nia.** Hoy el botón «Recargar» del buscador
    lleva a `/bases-de-datos/` y ahí se compra a mano. Para la Fase 5 hay que
    saber si hay endpoint o si Nia solo puede enlazar a esa página.
+
+---
+
+# El gateway `api.infonif.es/v1`
+
+Es **otro servicio**, no el buscador. Se descubrió al integrar la familia `/dato`
+y conviene no confundirlos: `bbdd-api.infonif.es/api` alimenta al buscador de
+bases de datos, y este gateway sirve datos y productos de una empresa concreta.
+
+## Dos cabeceras, dos capas
+
+Lo más confuso de este API, y no está documentado en ningún sitio. **`x-api-key`
+e `ICIF-APIKEY` no son alternativas: son capas distintas.**
+
+- `x-api-key` — la puerta de AWS API Gateway.
+- `ICIF-APIKEY` — la cuenta de créditos de su aplicación. Su código la busca
+  como `icif-apikey`, sin distinguir mayúsculas.
+
+Comprobado contra el API real sobre `POST /dato/obtener-perfil-empresa`, que es
+la única forma de establecerlo:
+
+| Cabeceras enviadas | Respuesta |
+|---|---|
+| solo `x-api-key` | `401 Unauthorized - Falta API Key` |
+| solo `ICIF-APIKEY` | `403 Forbidden - No tiene créditos` |
+| las dos | `403 Forbidden - No tiene créditos` |
+
+El matiz está en el 403: significa que la petición **pasó la autenticación** y
+llegó al control de saldo. O sea que `/dato` quiere `ICIF-APIKEY`, no
+`x-api-key`. Y `GET /buscador?q=…` es al revés: responde 200 con `x-api-key` y
+403 con `ICIF-APIKEY`.
+
+Nia manda **las dos** en las llamadas a `/dato`. Hoy la de AWS no hace falta ahí,
+pero si algún día activan el plan de uso, no mandarla sería una caída sin motivo
+aparente.
+
+## `GET /buscador` es el autocompletado de siempre
+
+Devuelve **exactamente los mismos bytes** que
+`bbdd-api.infonif.es/api/buscador/autocomplete/listar`. Es el mismo servicio a
+través del gateway.
+
+No se ha cambiado `buscar_empresa` para usarlo: no aporta ningún dato nuevo y
+añadiría una dependencia de credencial a una herramienta que hoy funciona sin
+ninguna.
+
+## Créditos: por empresa y por mes
+
+Verificado en su código (`lib/credits.ts`, `deductCredits`), no supuesto. Cada
+handler declara `costo = 1`, pero antes de descontar comprueban si ese NIF ya
+aparece en el historial del mes; si aparece, `needToDeduct = false`. Además
+cachean la respuesta por NIF.
+
+O sea: **abrir una empresa cuesta un crédito, y ese mes ya no vuelve a costar**.
+Consultar cargos, BORME, grupo y depósitos de la misma empresa cuesta lo mismo
+que consultar solo una de las cuatro.
+
+Eso invierte la orientación al modelo respecto a lo que parecía: quedarse corto
+no ahorra nada y obliga al usuario a repreguntar. Lo caro es abrir empresas
+nuevas.
+
+## Códigos de estado
+
+| Código | Qué significa | Qué hace Nia |
+|---|---|---|
+| `200` | hay dato | lo devuelve |
+| `204` | la empresa existe, de esto no hay nada | «no consta», sin reintentar |
+| `401` | falta o no vale la credencial | error; **no** ofrece comprar |
+| `403` | sin créditos | `requiereCompra`, ofrece recargar |
+| `460` | fallo interno suyo, disfrazado de 500 | error genérico |
+
+Distinguir el 401 del 403 importa más de lo que parece: mandar a recargar
+créditos a quien solo tenía que iniciar sesión le hace pagar por algo que no le
+resuelve el problema.
