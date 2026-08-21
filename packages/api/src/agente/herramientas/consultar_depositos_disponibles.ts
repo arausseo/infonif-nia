@@ -27,7 +27,7 @@ haya depositado o dejado de depositar no es una valoración.`,
     const resultado = await obtenerDepositosDisponibles(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
     });
-    if (resultado.estado !== "ok") return sinDato(resultado, "ninguna cuenta depositada");
+    if (resultado.estado !== "ok") return sinDato(resultado, "ninguna cuenta depositada", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { ejercicios, depositos } = resultado.datos;
 

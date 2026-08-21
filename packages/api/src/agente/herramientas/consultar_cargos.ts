@@ -41,7 +41,7 @@ uses para varias empresas de un segmento: es de una en una.`,
     if (estado) opciones.estado = estado;
 
     const resultado = await obtenerCargos(nif, ctx.derechos.usuarioId, opciones);
-    if (resultado.estado !== "ok") return sinDato(resultado, "los cargos");
+    if (resultado.estado !== "ok") return sinDato(resultado, "los cargos", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { cargos } = resultado.datos;
 

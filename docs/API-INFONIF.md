@@ -840,3 +840,68 @@ nuevas.
 Distinguir el 401 del 403 importa más de lo que parece: mandar a recargar
 créditos a quien solo tenía que iniciar sesión le hace pagar por algo que no le
 resuelve el problema.
+
+
+## Barrido completo con una clave a cero
+
+Se probaron todas las rutas aunque la clave no tuviera saldo, porque **el orden
+en que validan revela el contrato**. En los handlers de `/dato` la comprobación
+de créditos va ANTES que la del cuerpo, así que un 403 significa que la ruta
+existe y la credencial vale; y el `tipo` se valida antes que los créditos, que es
+la rendija por la que se confirma esa parte.
+
+### `/dato` — las siete existen, ninguna se pudo ejecutar
+
+Todas responden `403 No tiene créditos` con la clave actual. Confirma rutas y
+autenticación; no confirma las formas de respuesta, que siguen deducidas de su
+código.
+
+```
+POST /dato/obtener-razonsocial_nif        403
+POST /dato/obtener-perfil-empresa         403
+POST /dato/obtener-actos-borme            403
+POST /dato/obtener-cargos                 403
+POST /dato/obtener-balance-resumido       403
+POST /dato/obtener-empresas-grupo         403
+POST /dato/obtener-depositos-disponibles  403
+```
+
+Con `?tipo=basura` responden `400 Tipo de respuesta no válido` **antes** de mirar
+el saldo, lo que confirma que el parámetro existe y solo acepta `json` y `xml`.
+
+### `/credito` — tres funcionan y se pudieron ejecutar
+
+Estas rutas **no pasan por el control de créditos**, así que sus contratos sí
+están verificados contra respuestas reales.
+
+| Ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `consultar-creditos` | `{}` | `{"response":{"cantidad":0}}` |
+| `consultar-mes` | `{ahno, mes}` | `{"response":{"registros":[],"nifContinuacion":null}}` |
+| `consultar-historial` | `{desde, hasta}` | `{"response":{"registros":[],"fechaContinuacion":null}}` |
+| `obtener-saldo-productos` | — | `401 No autorizado` (otro mecanismo) |
+
+Dos detalles que cuestan una tarde si no están escritos:
+
+**El campo del año se llama `ahno`, con hache.** No es una errata de esta
+documentación: escribirlo bien devuelve `400 Falta el campo ahno`.
+
+**Las fechas del historial son `yyyy-MM-dd HH:mm`**, con hora y sin segundos.
+Mandar `2026-08-01` a secas devuelve `400 El campo desde no tiene formato de
+fecha válido`. Su propio mensaje de error es lo que lo revela.
+
+`nifContinuacion` y `fechaContinuacion` son cursores de paginación: si vienen a
+`null`, no hay más páginas.
+
+### Por qué esto importa aunque no haya saldo
+
+Que `consultar-creditos` responda sin gastar nada permite convertir un error en
+una frase útil. Cuando un `/dato` devuelve 403, Nia pregunta el saldo —que es
+gratis— y en vez de «no hay créditos» dice **«te quedan 0»**. Con un número, el
+usuario sabe si le faltan tres o trescientos.
+
+Y evita el error caro de este dominio: el usuario llama «créditos» tanto a estos
+como a los registros del plan de Base de Datos, que son **otra moneda que no se
+convierte**. Tener 5.000 registros de listado no da ni una consulta de empresa.
+Por eso el resultado lleva `moneda: "creditos_consulta"` y el aviso lo dice
+expresamente.

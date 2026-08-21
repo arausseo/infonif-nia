@@ -6,6 +6,7 @@ import comparaEmpresas from "./comparar_empresas.js";
 import construirSegmento from "./construir_segmento.js";
 import consultarActosBorme from "./consultar_actos_borme.js";
 import consultarCargos from "./consultar_cargos.js";
+import consultarCreditos from "./consultar_creditos.js";
 import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
 import consultarEmpresasGrupo from "./consultar_empresas_grupo.js";
 import consultarSaldo from "./consultar_saldo.js";
@@ -35,6 +36,7 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   consultarActosBorme,
   consultarEmpresasGrupo,
   consultarDepositosDisponibles,
+  consultarCreditos,
 
   consultarSaldo,
   recomendarProducto,

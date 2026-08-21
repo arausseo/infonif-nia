@@ -32,27 +32,31 @@ describe("comoLista", () => {
 });
 
 describe("sinDato", () => {
-  it("«no hay nada de esto» no es una venta", () => {
-    const r = sinDato({ estado: "sinDatos", origenClave: "usuario" }, "los cargos");
+  it("«no hay nada de esto» no es una venta", async () => {
+    const r = await sinDato({ estado: "sinDatos", origenClave: "usuario" }, "los cargos");
     const m = r.paraElModelo as Record<string, unknown>;
 
     expect(m["motivo"]).toBe("sinDatos");
     expect(m["requiereCompra"]).toBeUndefined();
   });
 
-  it("sin créditos SÍ es una venta, con su SKU", () => {
-    const r = sinDato({ estado: "sinCreditos", origenClave: "usuario" }, "los cargos");
+  it("sin créditos avisa de que es OTRA moneda", async () => {
+    const r = await sinDato({ estado: "sinCreditos", origenClave: "usuario" }, "los cargos");
     const m = r.paraElModelo as Record<string, unknown>;
 
     expect(m["motivo"]).toBe("sinCreditos");
     expect(m["requiereCompra"]).toBe(true);
-    expect(m["skuSugerido"]).toBe("PLAN_BBDD");
+    // Lo importante no es el SKU, es que NO se confunda con los registros del
+    // plan de Base de Datos: son dos monedas y el usuario llama «créditos» a las
+    // dos. Mandarle a recargar donde no es le hace perder el viaje.
+    expect(m["moneda"]).toBe("creditos_consulta");
+    expect(String(m["aviso"])).toMatch(/NO son los registros del plan/i);
   });
 
-  it("sin credencial NO es una venta: comprar no lo arregla", () => {
+  it("sin credencial NO es una venta: comprar no lo arregla", async () => {
     // El error caro. Mandar a recargar créditos a quien solo tiene que iniciar
     // sesión le hace pagar por algo que no le resuelve el problema.
-    const r = sinDato({ estado: "sinClave" }, "los cargos");
+    const r = await sinDato({ estado: "sinClave" }, "los cargos");
     const m = r.paraElModelo as Record<string, unknown>;
 
     expect(m["motivo"]).toBe("sinCredencial");
@@ -61,14 +65,14 @@ describe("sinDato", () => {
     expect(String(m["aviso"])).toMatch(/NO le ofrezcas comprar/i);
   });
 
-  it("en ningún caso sube el dato al contexto del modelo", () => {
+  it("en ningún caso sube el dato al contexto del modelo", async () => {
     // Regla 2: lo que sube es una situación, nunca el dato que no se puede dar.
     for (const caso of [
       { estado: "sinDatos", origenClave: "usuario" },
       { estado: "sinCreditos", origenClave: "usuario" },
       { estado: "sinClave" },
     ] as const) {
-      const m = sinDato(caso, "los cargos").paraElModelo as Record<string, unknown>;
+      const m = (await sinDato(caso, "los cargos")).paraElModelo as Record<string, unknown>;
       expect(m["hayDatos"]).toBe(false);
       expect(m["cargos"]).toBeUndefined();
       expect(m["datos"]).toBeUndefined();

@@ -1,4 +1,5 @@
 import type { ResultadoIcif } from "../../datos/icif/cliente.js";
+import { consultarCreditos } from "../../datos/icif/credito.js";
 import type { ResultadoTool } from "../tipos.js";
 
 /**
@@ -21,10 +22,11 @@ import type { ResultadoTool } from "../tipos.js";
  * en realidad tiene que iniciar sesión le hace pagar por algo que no le va a
  * resolver el problema.
  */
-export function sinDato(
+export async function sinDato(
   resultado: Exclude<ResultadoIcif<unknown>, { estado: "ok" }>,
   queSeBuscaba: string,
-): ResultadoTool {
+  ctx?: { usuarioId?: number; senal?: AbortSignal },
+): Promise<ResultadoTool> {
   if (resultado.estado === "sinDatos") {
     return {
       paraElModelo: {
@@ -36,16 +38,24 @@ export function sinDato(
   }
 
   if (resultado.estado === "sinCreditos") {
+    // Se pregunta el saldo exacto. `/credito/consultar-creditos` NO pasa por el
+    // control de créditos —comprobado con una clave a cero, responde 200— así
+    // que preguntarlo aquí no cuesta nada y convierte «no hay saldo» en «te
+    // quedan 0». La diferencia importa: con un número el usuario sabe si le
+    // faltan tres o trescientos.
+    const saldo = await consultarCreditos(ctx?.usuarioId, ctx?.senal ? { senal: ctx.senal } : {});
+    const disponibles = saldo.estado === "ok" ? saldo.datos.disponibles : undefined;
+
     return {
       paraElModelo: {
         hayDatos: false,
         motivo: "sinCreditos",
         requiereCompra: true,
-        // El importe va aquí porque la vez que no estuvo, el modelo se lo
-        // inventó. Un hueco en el resultado de una herramienta lo rellena el
-        // modelo, y lo rellena mal.
-        skuSugerido: "PLAN_BBDD",
-        aviso: `Se han agotado los créditos de consulta. Explícale que ${queSeBuscaba} está disponible pero necesita saldo, y ofrécele recargar en la página de planes. No des el dato ni lo aproximes: no lo tienes.`,
+        ...(disponibles != null ? { creditosDisponibles: disponibles } : {}),
+        // Moneda distinta del plan de registros. Sin esto el modelo mezcla las
+        // dos y manda a recargar donde no es.
+        moneda: "creditos_consulta",
+        aviso: `Se han agotado los créditos de consulta${disponibles != null ? ` (quedan ${disponibles})` : ""}. Explícale que ${queSeBuscaba} está disponible pero necesita saldo. OJO: estos créditos NO son los registros del plan de Base de Datos, son otra cosa y se compran aparte. No des el dato ni lo aproximes: no lo tienes.`,
       },
     };
   }

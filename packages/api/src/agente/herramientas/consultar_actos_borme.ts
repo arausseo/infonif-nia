@@ -33,7 +33,7 @@ que le vaya mal. Si te piden esa lectura, es valoración de riesgo y no la haces
     const resultado = await obtenerActosBorme(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
     });
-    if (resultado.estado !== "ok") return sinDato(resultado, "ningún acto del BORME");
+    if (resultado.estado !== "ok") return sinDato(resultado, "ningún acto del BORME", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const todos = resultado.datos.actos;
     const actos = todos.slice(0, limite ?? 10);

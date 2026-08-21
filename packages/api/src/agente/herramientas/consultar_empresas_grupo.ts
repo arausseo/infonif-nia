@@ -29,7 +29,7 @@ a una empresa concreta, que es otra cosa.`,
     const resultado = await obtenerEmpresasGrupo(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
     });
-    if (resultado.estado !== "ok") return sinDato(resultado, "ninguna vinculación");
+    if (resultado.estado !== "ok") return sinDato(resultado, "ninguna vinculación", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { empresas } = resultado.datos;
 
