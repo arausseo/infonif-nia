@@ -22,6 +22,7 @@ describe("registro de herramientas", () => {
       "comparar_empresas",
       "construir_segmento",
       "consultar_actos_borme",
+      "consultar_balance",
       "consultar_cargos",
       "consultar_creditos",
       "consultar_depositos_disponibles",

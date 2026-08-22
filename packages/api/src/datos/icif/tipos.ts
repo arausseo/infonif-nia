@@ -187,9 +187,37 @@ export type Deposito = z.infer<typeof Deposito>;
 
 // ─── Balance resumido ────────────────────────────────────────────────────────
 
-/** Va en `listado.partida`. No se expone: `obtener_magnitudes` ya lo cubre gratis. */
 export const RespuestaBalance = z
   .object({
     listado: z.object({ partida: z.unknown().optional() }).passthrough().optional(),
   })
   .passthrough();
+
+/**
+ * Una partida del balance.
+ *
+ * **Las claves de los años son dinámicas**: `valor2025`, `valor2024`,
+ * `valor2023`… No se pueden declarar en el esquema, así que se dejan pasar y se
+ * extraen en tiempo de ejecución. Cuántos años vengan depende de la empresa.
+ *
+ * El `codigo` es el mismo que usa el catálogo de campos comprables: `49500` es
+ * Resultado del ejercicio en los dos sitios.
+ */
+export const Partida = z
+  .object({
+    codigo: z.union([z.string(), z.number()]),
+    descripcion: z.string(),
+  })
+  .passthrough();
+
+export type Partida = z.infer<typeof Partida>;
+
+/** Saca los `valorYYYY` de una partida, en euros y por ejercicio. */
+export function valoresPorEjercicio(partida: Partida): Record<string, number> {
+  const salida: Record<string, number> = {};
+  for (const [clave, valor] of Object.entries(partida)) {
+    const anio = /^valor(\d{4})$/.exec(clave)?.[1];
+    if (anio && typeof valor === "number") salida[anio] = valor;
+  }
+  return salida;
+}

@@ -104,6 +104,73 @@ function cuerpoDeposito({ nif, ejercicio, consolidado }: PeticionDeposito) {
   return { nif, ejercicio, consolidado: consolidado ?? false };
 }
 
+/**
+ * ¿Tiene el usuario comprado este depósito?
+ *
+ * **Es la comprobación que hay que hacer antes de intentar la descarga**, y la
+ * única de la familia que responde algo legible cuando la respuesta es que no:
+ *
+ *     {"response":{"estado":-1,"mensaje":"No tiene compra registrada"}}
+ *
+ * Sin esto, `obtener-deposito-pdf` devuelve un 404 mudo que se confunde con «esa
+ * empresa no depositó ese año», que es una cosa completamente distinta. Uno se
+ * arregla comprando y el otro no se arregla.
+ */
+export interface EstadoDeposito {
+  /** -1 es «no tiene compra registrada». El resto de valores, sin confirmar. */
+  estado: number;
+  mensaje: string;
+  comprado: boolean;
+}
+
+export async function estadoPartidasDeposito(
+  peticion: PeticionDeposito,
+  usuarioId: number | undefined,
+  opciones: { senal?: AbortSignal } = {},
+): Promise<ResultadoIcif<EstadoDeposito>> {
+  const bruto = await icif<{ response?: { estado?: number; mensaje?: string } }>(
+    "/producto/estado-partidas-deposito",
+    usuarioId,
+    {
+      cuerpo: cuerpoDeposito(peticion),
+      ...(opciones.senal ? { senal: opciones.senal } : {}),
+    },
+  );
+  if (bruto.estado !== "ok") return bruto;
+
+  const estado = bruto.datos.response?.estado ?? -1;
+  return {
+    estado: "ok",
+    datos: {
+      estado,
+      mensaje: bruto.datos.response?.mensaje ?? "",
+      // Solo el -1 está confirmado contra el API. Cualquier otro valor se toma
+      // como comprado, que es el lado seguro: si acaso se intenta la descarga y
+      // esa sí falla de forma explícita.
+      comprado: estado !== -1,
+    },
+    origenClave: bruto.origenClave,
+  };
+}
+
+/**
+ * Dónde está el PDF del depósito.
+ *
+ * **Cuidado con lo que devuelve.** Según los ejemplos de Infonif no es una URL,
+ * sino una ruta UNC de un recurso compartido de Windows:
+ *
+ *     \SNOW\CUENTASRM4µ\A26563668\INDIVIDUALES\A26563668.pdf
+ *     \192.168.1.202\Documentacion Escaneada Librados\C\…\MRM010874473.pdf
+ *
+ * Eso tiene dos consecuencias. La primera es que **no se le puede enseñar al
+ * usuario**: no es un enlace que pueda pulsar, y además expone la topología
+ * interna. La segunda es que leerlo exige estar en esa red con SMB montado, cosa
+ * que esta máquina no está.
+ *
+ * Por eso `rutaInterna()` separa una cosa de otra: si lo que vuelve es http(s),
+ * es un enlace y se puede entregar; si es UNC, se sabe que el fichero existe pero
+ * la entrega tiene que resolverla otro.
+ */
 export async function obtenerDepositoPdf(
   peticion: PeticionDeposito,
   usuarioId: number | undefined,
@@ -217,4 +284,37 @@ export async function obtenerSocios(
     cuerpo: { nif },
     ...(opciones.senal ? { senal: opciones.senal } : {}),
   });
+}
+
+/** ¿Es una ruta de red interna (UNC o unidad de Windows) en vez de un enlace? */
+export function esRutaInterna(valor: string): boolean {
+  return valor.startsWith("\\\\") || /^[a-zA-Z]:\\/.test(valor);
+}
+
+/**
+ * Saca del resultado algo que se pueda entregar.
+ *
+ * Devuelve el enlace solo si de verdad lo es. Una ruta UNC se reconoce pero no
+ * se propaga: enseñar una ruta de red en un chat no le sirve de nada al usuario
+ * y de paso le cuenta cómo se llaman los servidores de dentro.
+ */
+export function enlaceDeDeposito(datos: unknown): {
+  enlace?: string;
+  hayFichero: boolean;
+} {
+  const candidatos: string[] = [];
+  const recorrer = (v: unknown, hondura = 0) => {
+    if (hondura > 4) return;
+    if (typeof v === "string") candidatos.push(v);
+    else if (Array.isArray(v)) v.forEach((x) => recorrer(x, hondura + 1));
+    else if (v && typeof v === "object") {
+      Object.values(v).forEach((x) => recorrer(x, hondura + 1));
+    }
+  };
+  recorrer(datos);
+
+  const enlace = candidatos.find((c) => /^https?:\/\//i.test(c));
+  if (enlace) return { enlace, hayFichero: true };
+
+  return { hayFichero: candidatos.some((c) => esRutaInterna(c)) };
 }

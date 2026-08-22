@@ -5,6 +5,7 @@ import buscarEmpresa from "./buscar_empresa.js";
 import comparaEmpresas from "./comparar_empresas.js";
 import construirSegmento from "./construir_segmento.js";
 import consultarActosBorme from "./consultar_actos_borme.js";
+import consultarBalance from "./consultar_balance.js";
 import consultarCargos from "./consultar_cargos.js";
 import consultarCreditos from "./consultar_creditos.js";
 import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
@@ -37,6 +38,7 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   // credencial, comparten coste (1 crédito por NIF y mes) y comparten la forma
   // de fallar. Lo que las une no es el tema, es de dónde salen.
   consultarCargos,
+  consultarBalance,
   consultarActosBorme,
   consultarEmpresasGrupo,
   consultarDepositosDisponibles,

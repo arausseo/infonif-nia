@@ -8,8 +8,11 @@ import {
   PerfilEmpresa,
   RespuestaActosBorme,
   RespuestaCargos,
+  Partida,
+  RespuestaBalance,
   RespuestaDepositos,
   RespuestaEmpresasGrupo,
+  valoresPorEjercicio,
 } from "./tipos.js";
 
 /**
@@ -251,4 +254,66 @@ function llamar(
   senal: AbortSignal | undefined,
 ): Promise<ResultadoIcif<unknown>> {
   return icif(ruta, usuarioId, senal ? { cuerpo, senal } : { cuerpo });
+}
+
+// ─── Balance resumido ────────────────────────────────────────────────────────
+
+export interface PartidaBalance {
+  codigo: string;
+  concepto: string;
+  /** Euros por ejercicio: `{ "2025": 36813196000, "2024": … }`. */
+  valores: Record<string, number>;
+}
+
+export interface Balance {
+  nif: string;
+  ejercicios: string[];
+  partidas: PartidaBalance[];
+}
+
+/**
+ * El balance resumido de una empresa: activo, pasivo, pérdidas y ganancias.
+ *
+ * **Esto se descartó al principio por «duplicar `obtener_magnitudes`», y era un
+ * error.** No son equivalentes: `obtener_magnitudes` va contra el API del
+ * buscador y exige sesión, así que a un usuario anónimo le contestaba «inicia
+ * sesión» estando el dato disponible. Este va por el gateway con la clave de
+ * Infonif y responde sin sesión.
+ *
+ * La lección es que comparar dos fuentes por lo que devuelven no basta: hay que
+ * comparar también a quién se lo devuelven.
+ */
+export async function obtenerBalanceResumido(
+  nif: string,
+  usuarioId: number | undefined,
+  opciones: { senal?: AbortSignal } = {},
+): Promise<ResultadoIcif<Balance>> {
+  const bruto = await llamar(
+    "/dato/obtener-balance-resumido",
+    usuarioId,
+    { nif },
+    opciones.senal,
+  );
+  if (bruto.estado !== "ok") return bruto;
+
+  const analizado = RespuestaBalance.safeParse(bruto.datos);
+  const partidas = analizado.success
+    ? comoLista(analizado.data.listado?.partida).flatMap((p) => {
+        const v = Partida.safeParse(p);
+        if (!v.success) return [];
+        return [
+          {
+            codigo: String(v.data.codigo),
+            concepto: v.data.descripcion,
+            valores: valoresPorEjercicio(v.data),
+          },
+        ];
+      })
+    : [];
+
+  const ejercicios = [
+    ...new Set(partidas.flatMap((p) => Object.keys(p.valores))),
+  ].sort((a, b) => b.localeCompare(a));
+
+  return { estado: "ok", datos: { nif, ejercicios, partidas }, origenClave: bruto.origenClave };
 }

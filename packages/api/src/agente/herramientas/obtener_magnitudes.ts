@@ -12,13 +12,20 @@ import { definirTool } from "../tipos.js";
  */
 export default definirTool({
   nombre: "obtener_magnitudes",
-  descripcion: `Cifras financieras de una empresa: ventas, EBITDA, resultado, activo, patrimonio
-neto y empleados, cada una con el ejercicio al que corresponde.
+  descripcion: `EBITDA y magnitudes elaboradas de una empresa, con su ejercicio.
 
-Requiere derechos. Si el usuario no los tiene, devuelve requiereCompra con el
-producto que se los daría: entonces explícale qué incluye ese producto y ofrécele
-comprarlo. NO inventes ni estimes ninguna cifra, y no repitas cifras de turnos
-anteriores como si fueran nuevas.
+**Para las cifras corrientes usa consultar_balance, NO esta.** Facturación,
+resultado, activo, patrimonio neto y demás partidas salen de allí sin necesidad
+de que el usuario haya comprado nada. Empezar por aquí le dice «tienes que
+comprar» a alguien que podía tener su respuesta gratis, y eso es lo peor que
+puede pasar en una primera pregunta.
+
+Esta es para lo que el balance NO trae: sobre todo el EBITDA. O cuando ya sabes
+que el usuario tiene derechos y quieres las magnitudes ya elaboradas.
+
+Requiere derechos. Si no los tiene, devuelve requiereCompra con el producto que
+se los daría: explícale qué incluye y ofrécelo. NO inventes ni estimes ninguna
+cifra, y no repitas las de turnos anteriores como si fueran nuevas.
 
 Cita SIEMPRE el ejercicio junto a cada número. Una cifra sin año no vale.`,
   progreso: "Consultando las magnitudes",
