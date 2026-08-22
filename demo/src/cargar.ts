@@ -18,10 +18,16 @@ declare global {
   }
 }
 
-const API = "http://localhost:3000";
+/** Lo inyecta Vite desde `NIA_API`; por defecto, el 3000 de siempre. */
+declare const __NIA_API__: string;
+const API = __NIA_API__;
 
 /** Se elige con ?usuario=133627 en la URL, para poder enseñar los dos perfiles. */
 const usuarioId = new URLSearchParams(location.search).get("usuario");
+
+// El HTML fija un apiBase por defecto antes de que esto corra. Se pisa aquí para
+// que valga también en modo anónimo, no solo cuando hay token.
+window.__INFONIF_AGENT__ = { ...window.__INFONIF_AGENT__, apiBase: API };
 
 async function acunarToken(): Promise<void> {
   if (!usuarioId) return;

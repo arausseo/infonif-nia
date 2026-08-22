@@ -2,7 +2,14 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
-const API = "http://localhost:3000";
+/**
+ * Dónde escucha el API de Nia.
+ *
+ * Configurable porque el 3000 se lo lleva cualquier otra cosa que tengas
+ * levantada, y tener el puerto a fuego en tres ficheros obliga a editarlos los
+ * tres. `NIA_API=http://localhost:3100 pnpm dev` y listo.
+ */
+const API = process.env["NIA_API"] ?? "http://localhost:3000";
 
 /**
  * Imita la parte servidor del puente de sesión (CONTRATOS §5).
@@ -53,6 +60,8 @@ function puenteDeSesion(): Plugin {
  * que produce `pnpm --filter @nia/widget build`.
  */
 export default defineConfig({
+  // El valor llega al navegador por aquí: `cargar.ts` no puede leer process.env.
+  define: { __NIA_API__: JSON.stringify(API) },
   plugins: [react(), puenteDeSesion()],
   resolve: {
     alias: {
