@@ -31,6 +31,52 @@ describe("comoLista", () => {
   });
 });
 
+describe("sesión y compra no son lo mismo", () => {
+  /**
+   * El riesgo que tapa la clave genérica del demo.
+   *
+   * Con ella, cualquiera obtiene el balance sin identificarse. En producción no
+   * habrá genérica: cada consulta gasta del saldo del propio usuario, así que
+   * quien no haya iniciado sesión recibirá `sinClave`.
+   *
+   * Lo que NO puede pasar es que eso se le presente como una compra. Le haría
+   * pagar por algo que no le resuelve el problema — y encima el problema tenía
+   * arreglo gratis: entrar en su cuenta.
+   */
+  it("falta de sesión NUNCA se presenta como una compra", async () => {
+    const m = (await sinDato({ estado: "sinClave" }, "el balance")).paraElModelo as Record<
+      string,
+      unknown
+    >;
+
+    expect(m["motivo"]).toBe("sinCredencial");
+    expect(m["requiereCompra"]).toBeUndefined();
+    expect(m["skuSugerido"]).toBeUndefined();
+    expect(m["moneda"]).toBeUndefined();
+  });
+
+  it("y las tres razones de no tener dato siguen siendo distinguibles", async () => {
+    const motivos = await Promise.all(
+      (
+        [
+          { estado: "sinDatos", origenClave: "usuario" },
+          { estado: "sinCreditos", origenClave: "usuario" },
+          { estado: "noAutorizado", origenClave: "usuario" },
+          { estado: "sinClave" },
+        ] as const
+      ).map(async (c) => {
+        const m = (await sinDato(c, "el balance")).paraElModelo as Record<string, unknown>;
+        return m["motivo"];
+      }),
+    );
+
+    // Cuatro situaciones, cuatro respuestas: no consta / falta saldo / no
+    // contratado / falta sesión. Si dos se confundieran, el usuario acabaría
+    // pagando por lo que no era.
+    expect(new Set(motivos).size).toBe(4);
+  });
+});
+
 describe("respuestas vacías del gateway", () => {
   /**
    * Este gateway tiene TRES formas de decir «no hay datos» y solo dos son

@@ -187,6 +187,48 @@ afirmativa sin contenido y ahí es justo donde rellena el hueco por su cuenta.
 El cliente trata ahora como «sin datos» la cadena vacía, el objeto sin claves y
 la lista sin elementos.
 
+## La clave genérica es una muleta del demo
+
+Ahora mismo Nia usa `ICIF_APIKEY_GENERICA` porque el ASP **todavía no manda la
+clave del usuario** en `/internal/mint`. Eso hace que en el demo cualquiera
+obtenga cargos, balance o BORME sin identificarse.
+
+**En producción no vale**, por dos razones y ninguna es técnica:
+
+- Cada consulta gasta saldo. Con la genérica lo gasta **Gedesco**, no quien
+  pregunta.
+- El usuario tiene que estar identificado para consumir su propio saldo, que es
+  justo lo que la genérica se salta.
+
+Lo que hay que hacer para el paso a producción:
+
+1. Que el ASP incluya `apiKey` en su llamada a `POST /internal/mint`. El campo ya
+   está aceptado y la clave se guarda en Redis, no en el token.
+2. Poner `ICIF_PERMITIR_GENERICA=false`.
+
+Mientras la genérica siga activa **con `NODE_ENV=production`, el servicio lo avisa
+en cada arranque**. Se avisa en vez de bloquear porque bloquear dejaría el
+servicio mudo sin explicar por qué; pero se avisa fuerte, porque es de esas cosas
+que se ponen «un momento» y duran un año.
+
+### El efecto en la conversación
+
+Sin genérica, quien no haya iniciado sesión recibe `sinClave`, y eso **no se le
+presenta como una compra**: se le dice que entre en su cuenta. La distinción está
+probada, porque confundirla haría pagar a alguien por algo que no le resuelve el
+problema.
+
+Son cuatro situaciones distintas y cada una lleva a una frase distinta:
+
+| Situación | Qué le falta | Qué se le dice |
+|---|---|---|
+| `sinDatos` | nada, no hay dato | «no consta» |
+| `sinCreditos` | saldo de consulta | recargar |
+| `noAutorizado` | el producto | comprarlo en el portal |
+| `sinCredencial` | **sesión** | iniciar sesión, y nada más |
+
+---
+
 ## Qué pedir a Infonif
 
 Por orden de lo que desbloquea:

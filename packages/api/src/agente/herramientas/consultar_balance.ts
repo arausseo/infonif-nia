@@ -34,8 +34,14 @@ export default definirTool({
 y demás partidas, con su valor en cada uno de los últimos ejercicios.
 
 **Es la PRIMERA que hay que probar para cualquier pregunta sobre cifras**:
-cuánto factura, cuánto gana, cuánto tiene, cómo le va. No requiere que el usuario
-haya comprado nada, así que responde a quien pregunta sin haber iniciado sesión.
+cuánto factura, cuánto gana, cuánto tiene, cómo le va. No hay que COMPRAR nada
+para tenerla, a diferencia de obtener_magnitudes.
+
+Lo que sí hace falta es que el usuario haya iniciado sesión, porque consume de
+su saldo de consultas. Si no la ha iniciado, la herramienta lo dirá: entonces
+dile que entre en su cuenta, y NO le ofrezcas comprar nada — no es eso lo que le
+falta.
+
 Solo si te piden el EBITDA —que aquí no viene— pasas a obtener_magnitudes.
 
 Necesita el NIF.

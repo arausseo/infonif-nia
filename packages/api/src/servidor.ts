@@ -8,7 +8,7 @@ import { esErrorNia } from "./comun/errores.js";
 import { estadoInfonif } from "./datos/infonif/cliente.js";
 import { estadoCacheResumen, precargarResumen } from "./datos/infonif/resumen.js";
 import { estadoCatalogo, prepararCatalogo } from "./datos/catalogo.js";
-import { estadoClaves } from "./datos/icif/claves.js";
+import { avisarSiGenericaEnProduccion, estadoClaves } from "./datos/icif/claves.js";
 import { prepararSemantica } from "./datos/semantica.js";
 import { cerrarRedis, estadoRedis } from "./datos/redis/cliente.js";
 import { registrarConversar } from "./rutas/conversar.js";
@@ -76,6 +76,7 @@ async function arrancar(): Promise<void> {
 
   // Sin esperarlo: el servicio ya acepta peticiones mientras el resumen baja.
   // Así el primer usuario no paga los 26 segundos ni con Redis vacío.
+  avisarSiGenericaEnProduccion();
   precargarResumen();
   void prepararCatalogo();
 

@@ -96,6 +96,30 @@ export async function resolverClave(
   return { apiKey: generica, origen: "generica" };
 }
 
+/**
+ * Avisa si la clave genérica está activa en producción.
+ *
+ * **La genérica es una muleta del demo**, donde todavía no se recoge la clave
+ * del usuario. En producción no vale: cada consulta gasta del saldo de quien
+ * pregunta, y con la genérica las gastaría todas Gedesco — además de saltarse
+ * que el usuario tenga que estar identificado para consumir su propio saldo.
+ *
+ * Se avisa al arrancar en vez de bloquear porque bloquear dejaría el servicio
+ * mudo sin explicar por qué. Pero se avisa fuerte y en cada arranque: es de esas
+ * cosas que se quedan puestas «un momento» y duran un año.
+ */
+export function avisarSiGenericaEnProduccion(): void {
+  if (config.NODE_ENV !== "production") return;
+  if (!config.ICIF_APIKEY_GENERICA || !config.ICIF_PERMITIR_GENERICA) return;
+
+  registro.warn(
+    "ICIF_APIKEY_GENERICA activa en PRODUCCIÓN: las consultas de empresa se " +
+      "cargarán a la cuenta de Gedesco, no a la del usuario. Es una muleta del " +
+      "demo. Pon ICIF_PERMITIR_GENERICA=false y haz que el ASP mande la clave " +
+      "del usuario en /internal/mint.",
+  );
+}
+
 /** Para /salud/dependencias: si hay respaldo configurado y si está permitido. */
 export function estadoClaves(): { generica: boolean; permitida: boolean } {
   return {
