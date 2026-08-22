@@ -1,60 +1,69 @@
 import { z } from "zod";
 
 /**
- * Formas de respuesta del gateway.
+ * Formas de respuesta del gateway, **contrastadas contra el API real**.
  *
- * **Estos esquemas son deliberadamente permisivos, y va en contra de la norma
- * del proyecto por un motivo concreto.**
+ * Hasta tener una clave con saldo estuvieron deducidas leyendo su código, y el
+ * contraste demostró que eso no basta: los contenedores estaban bien —`empresa`,
+ * `listado.cargo`, `listado.acto`…— pero **los campos de dentro fallaban en casi
+ * todos**. Los cuatro del BORME estaban mal, y en depósitos el año se llama
+ * `anno`, no `ejercicio`, así que la lista de ejercicios salía siempre vacía sin
+ * que nada se quejara.
  *
- * La regla dice Zod `.strict()` en todo borde externo, y es la correcta para lo
- * que entra: los argumentos que emite el modelo. Ahí lo estricto impide que se
- * invente un campo y que el código haga algo con él.
+ * Es el argumento a favor de haberlos dejado permisivos: con `.strict()` habría
+ * fallado a lo bruto en producción en vez de degradar. Se mantienen así, porque
+ * lo verificado es una respuesta de una empresa, no el contrato entero.
  *
- * Aquí es al revés. Esto es lo que SALE de un servicio de terceros cuyo contrato
- * no está documentado y que **todavía no hemos podido ejecutar** —no hay clave
- * válida para probar—. Se ha deducido leyendo su código. Un `.strict()` sobre
- * una forma deducida no protege de nada: garantiza que el día que añadan un
- * campo, Nia deje de responder sobre esa empresa. Se valida lo que se va a leer
- * y se deja pasar el resto.
- *
- * Cuando haya una clave de pruebas, esto se contrasta contra respuestas reales.
- * Hasta entonces, cada esquema lleva anotado de dónde salió.
+ * Referencia: MERCADONA SA (A46103834), agosto de 2026.
  */
 
 /**
- * El gateway convierte XML a JSON con `fast-xml-parser`, y ese conversor tiene
- * una trampa clásica: **una lista de un solo elemento no es una lista**, es el
- * elemento suelto. Su propio código lo parchea a mano para `listado.deposito`
- * (`utils.ts`, `respData`), lo que confirma que el problema es real; lo que no
- * está es el parche para el resto de listados.
+ * `fast-xml-parser` convierte una lista de un elemento en el elemento suelto.
+ * Su propio código lo parchea a mano para `listado.deposito`, lo que confirma
+ * que el problema es real; lo que no está es el parche para el resto.
  *
- * Aquí se normaliza siempre. Sin esto, una empresa con un solo administrador
- * devolvería un objeto donde el resto devuelve un array, y el fallo aparecería
- * justo en el caso más común de una pyme.
+ * Sin esto, una empresa con un solo administrador devolvería un objeto donde el
+ * resto devuelve un array — el fallo aparecería justo en el caso más común de
+ * una pyme.
  */
 export function comoLista<T>(valor: T | T[] | undefined | null): T[] {
   if (valor == null) return [];
   return Array.isArray(valor) ? valor : [valor];
 }
 
-/** Deducido de `utils.ts`: normalizan `empresa.codigopostal` y `codprovinciaine`. */
+const texto = z.union([z.string(), z.number()]).optional();
+
+// ─── Perfil ──────────────────────────────────────────────────────────────────
+
 export const PerfilEmpresa = z
   .object({
     empresa: z
       .object({
-        nif: z.union([z.string(), z.number()]).optional(),
-        razonsocial: z.string().optional(),
-        domicilio: z.string().optional(),
-        codigopostal: z.union([z.string(), z.number()]).optional(),
-        poblacion: z.string().optional(),
-        provincia: z.string().optional(),
-        codprovinciaine: z.union([z.string(), z.number()]).optional(),
-        cnae: z.union([z.string(), z.number()]).optional(),
-        objetosocial: z.string().optional(),
-        fechaconstitucion: z.union([z.string(), z.number()]).optional(),
-        situacion: z.string().optional(),
-        telefono: z.union([z.string(), z.number()]).optional(),
-        web: z.string().optional(),
+        nif: texto,
+        razonsocial: texto,
+        fechaconstitucion: texto,
+        // OJO: `direccion` y `localidad`. Al deducirlo puse `domicilio` y
+        // `poblacion`, que no existen.
+        direccion: texto,
+        localidad: texto,
+        provincia: texto,
+        codprovinciaine: texto,
+        codigopostal: texto,
+        domicilioborme: texto,
+        telefono: texto,
+        email: texto,
+        denominacionanterior: texto,
+        registromercantil: texto,
+        auditor: texto,
+        industria: texto,
+        ultimascuentaspresentadas: texto,
+        objetosocial: texto,
+        cnae: texto,
+        cnaedescripcion: texto,
+        cnaecodigo: texto,
+        empleados: texto,
+        web: texto,
+        urlperfilinfonif: texto,
       })
       .passthrough()
       .optional(),
@@ -63,96 +72,124 @@ export const PerfilEmpresa = z
 
 export type PerfilEmpresa = z.infer<typeof PerfilEmpresa>;
 
-/**
- * Cargos. La ruta exige `estado` en el cuerpo además del NIF (`getEstado`), así
- * que el llamante tiene que decidir si quiere los vigentes o todos.
- */
+// ─── Cargos ──────────────────────────────────────────────────────────────────
+
 export const RespuestaCargos = z
   .object({
-    listado: z
-      .object({
-        cargo: z.unknown().optional(),
-      })
-      .passthrough()
-      .optional(),
+    listado: z.object({ cargo: z.unknown().optional() }).passthrough().optional(),
   })
   .passthrough();
 
 export const Cargo = z
   .object({
-    nombre: z.string().optional(),
-    cargo: z.string().optional(),
-    fechanombramiento: z.union([z.string(), z.number()]).optional(),
-    fechacese: z.union([z.string(), z.number()]).optional(),
-    nifcargo: z.union([z.string(), z.number()]).optional(),
+    /** «Activo» o el que corresponda. No lo había previsto y es lo primero que se mira. */
+    estado: texto,
+    /** Puede ser una sociedad, no solo una persona: en Mercadona sale «INMO ALAMEDA SL». */
+    nombre: texto,
+    cargo: texto,
+    fechanombramiento: texto,
+    /** Vacío mientras el cargo siga vigente. */
+    fechacese: texto,
+    /** En cuántas sociedades más figura. No se expone: sería tirar del hilo de una persona. */
+    vinculaciones: texto,
   })
   .passthrough();
 
 export type Cargo = z.infer<typeof Cargo>;
 
+// ─── BORME ───────────────────────────────────────────────────────────────────
+
 export const RespuestaActosBorme = z
   .object({
-    listado: z
-      .object({
-        acto: z.unknown().optional(),
-      })
-      .passthrough()
-      .optional(),
+    listado: z.object({ acto: z.unknown().optional() }).passthrough().optional(),
   })
   .passthrough();
 
+/**
+ * Un acto del BORME. **Los cuatro campos que deduje estaban mal**: no hay
+ * `fecha`, ni `registro`, ni `acto`, ni `descripcion`.
+ *
+ * Lo que hay es más útil, además: el acto viene clasificado en `grupo` y
+ * `subgrupo` («Nombramientos.» / «Apoderado:») con el `detalle` aparte, y trae
+ * el enlace al PDF oficial del BOE.
+ */
 export const ActoBorme = z
   .object({
-    fecha: z.union([z.string(), z.number()]).optional(),
-    registro: z.string().optional(),
-    acto: z.string().optional(),
-    descripcion: z.string().optional(),
+    tipo: texto,
+    numacto: texto,
+    fechaborme: texto,
+    /** Qué clase de acto: «Nombramientos.», «Ceses/Dimisiones.»… */
+    grupo: texto,
+    /** El matiz dentro del grupo: «Apoderado:», «Consejero:»… */
+    subgrupo: texto,
+    /** El contenido: normalmente el nombre de la persona o el dato que cambia. */
+    detalle: texto,
+    /** PDF oficial en boe.es. */
+    urlficheroborme: texto,
+    cve: texto,
   })
   .passthrough();
 
 export type ActoBorme = z.infer<typeof ActoBorme>;
 
+// ─── Grupo ───────────────────────────────────────────────────────────────────
+
 export const RespuestaEmpresasGrupo = z
   .object({
-    listado: z
-      .object({
-        empresa: z.unknown().optional(),
-      })
-      .passthrough()
-      .optional(),
+    listado: z.object({ empresa: z.unknown().optional() }).passthrough().optional(),
   })
   .passthrough();
 
+/**
+ * Una empresa del grupo. No hay `relacion` ni `participacion` como supuse: la
+ * relación se expresa con **`matriz`**, que vale 1 si esa empresa es la matriz.
+ */
 export const EmpresaGrupo = z
   .object({
-    nif: z.union([z.string(), z.number()]).optional(),
-    razonsocial: z.string().optional(),
-    relacion: z.string().optional(),
-    participacion: z.union([z.string(), z.number()]).optional(),
+    nif: texto,
+    razonsocial: texto,
+    /** 1 = es la matriz. 0 = participada o vinculada. */
+    matriz: texto,
   })
   .passthrough();
 
 export type EmpresaGrupo = z.infer<typeof EmpresaGrupo>;
 
-/** El único cuyo `listado` sabemos seguro que es array: lo fuerzan ellos. */
+// ─── Depósitos ───────────────────────────────────────────────────────────────
+
 export const RespuestaDepositos = z
   .object({
-    listado: z
-      .object({
-        deposito: z.unknown().optional(),
-      })
-      .passthrough()
-      .optional(),
+    listado: z.object({ deposito: z.unknown().optional() }).passthrough().optional(),
   })
   .passthrough();
 
+/**
+ * Un depósito de cuentas.
+ *
+ * **El año se llama `anno`, no `ejercicio`.** Es el error que más caro salía:
+ * la lista de ejercicios se construía leyendo un campo inexistente, así que
+ * salía vacía siempre y la herramienta contestaba «no consta ninguna cuenta»
+ * sobre empresas que sí las tenían. Un fallo que no lanza ninguna excepción.
+ *
+ * `consolidado` viene aquí y es justo el parámetro obligatorio que pide la
+ * descarga del depósito: de esta lista sale con qué valores pedirlo.
+ */
 export const Deposito = z
   .object({
-    ejercicio: z.union([z.string(), z.number()]).optional(),
-    id: z.union([z.string(), z.number()]).optional(),
-    tipo: z.string().optional(),
-    fechadeposito: z.union([z.string(), z.number()]).optional(),
+    anno: texto,
+    /** 0 individuales, 1 consolidadas. */
+    consolidado: texto,
+    procesadas: texto,
   })
   .passthrough();
 
 export type Deposito = z.infer<typeof Deposito>;
+
+// ─── Balance resumido ────────────────────────────────────────────────────────
+
+/** Va en `listado.partida`. No se expone: `obtener_magnitudes` ya lo cubre gratis. */
+export const RespuestaBalance = z
+  .object({
+    listado: z.object({ partida: z.unknown().optional() }).passthrough().optional(),
+  })
+  .passthrough();

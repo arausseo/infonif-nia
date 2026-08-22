@@ -191,9 +191,9 @@ la lista sin elementos.
 
 Por orden de lo que desbloquea:
 
-1. **Alta de la apikey en la tabla de créditos con `tipo = "icif"`.** Sin esto la
-   familia `/dato` no se puede contrastar contra datos reales, y sus formas de
-   respuesta siguen deducidas del código.
+1. ~~Alta de la apikey en la tabla de créditos.~~ **Resuelto**: la clave del
+   22/08/2026 tiene 2.857.097 créditos y toda la familia `/dato` responde con
+   datos reales. Los esquemas están contrastados (ver abajo).
 2. **Una clave con algún producto contratado**, para contrastar las respuestas de
    `/producto`. Hoy todas dan `401 No autorizado`, que es la vía correcta pero no
    enseña la forma del dato cuando sí lo hay.
@@ -201,6 +201,47 @@ Por orden de lo que desbloquea:
    titularidad real desde una conversación.
 4. **Si `obtener-balance-resumido` aporta algo** sobre las magnitudes que ya
    tenemos gratis. Si no, se queda descartado para siempre y se documenta.
+
+---
+
+## Lo que enseñó el contraste con datos reales
+
+Los esquemas estuvieron deducidos del código hasta tener una clave con saldo, y
+el contraste demostró que **eso no basta**. Los contenedores estaban bien; los
+campos de dentro fallaban en casi todos:
+
+| Dónde | Deducido | Real |
+|---|---|---|
+| perfil | `domicilio`, `poblacion` | `direccion`, `localidad` |
+| cargos | `nifcargo` | no existe; sí hay `estado` y `vinculaciones` |
+| BORME | `fecha`, `registro`, `acto`, `descripcion` | **los cuatro mal**: `fechaborme`, `grupo`, `subgrupo`, `detalle`, `urlficheroborme` |
+| grupo | `relacion`, `participacion` | solo `matriz` (0/1) |
+| depósitos | `ejercicio`, `tipo`, `fechadeposito` | `anno`, `consolidado`, `procesadas` |
+
+El de depósitos era el caro: al leer `ejercicio` en vez de `anno`, la lista de
+ejercicios salía **vacía siempre** y la herramienta contestaba «no consta ninguna
+cuenta» sobre empresas que sí las tenían. Sin lanzar ninguna excepción.
+
+Es también el argumento a favor de haber dejado los esquemas permisivos: con
+`.strict()` habría reventado en producción en vez de degradar.
+
+### `estado` en cargos: solo sirve el 1
+
+Se ofrecía una opción `todos` que no existe. Comprobado con tres empresas:
+
+| valor | respuesta |
+|---|---|
+| `0` | 400 «Falta estado» — su `getEstado` usa `if (!data.estado)` y el 0 es falso |
+| `1` | 200 con los vigentes: 174 en Mercadona, todos «Activo» |
+| `2` y `3` | **204, sin contenido** |
+
+La opción se ha retirado: prometía un histórico que siempre volvía vacío.
+
+### `vinculaciones` no se expone
+
+Los cargos traen en cuántas sociedades más figura esa persona. Es justo el dato
+que convierte una consulta mercantil en el perfil de alguien, así que se lee y no
+se pasa al modelo.
 
 ---
 

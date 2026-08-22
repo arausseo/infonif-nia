@@ -32,30 +32,35 @@ import {
  * dicen en esos términos y no en abstracto.
  */
 
-/** Estado de los cargos que se piden. Su API lo exige (`getEstado`). */
-export type EstadoCargo = "vigentes" | "todos";
-
-const ESTADO: Record<EstadoCargo, number> = {
-  // Deducido de su API: el parámetro es numérico y obligatorio. Sin clave de
-  // pruebas no se ha podido confirmar la correspondencia; está aislado aquí para
-  // que corregirlo sea una línea.
-  vigentes: 1,
-  todos: 2,
-};
+/**
+ * `estado` es obligatorio y **el único valor que sirve es 1**.
+ *
+ * Comprobado contra el API con tres empresas distintas:
+ *
+ * | valor | respuesta |
+ * |---|---|
+ * | `0` | 400 «Falta estado» — su `getEstado` usa `if (!data.estado)` y el 0 es falso |
+ * | `1` | 200 con los cargos vigentes: en Mercadona, 174, todos «Activo» |
+ * | `2` | **204, sin contenido** |
+ * | `3` | 204 |
+ *
+ * Al deducirlo supuse que 2 serían «todos» y llegué a ofrecerlo como opción de
+ * la herramienta. Era una promesa falsa: quien pidiera el histórico recibía
+ * siempre «no consta ninguno». Mejor no ofrecer lo que no existe.
+ */
+const ESTADO_VIGENTES = 1;
 
 export interface Cargos {
   nif: string;
-  estado: EstadoCargo;
   cargos: Cargo[];
 }
 
 export async function obtenerCargos(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { estado?: EstadoCargo; senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal } = {},
 ): Promise<ResultadoIcif<Cargos>> {
-  const estado = opciones.estado ?? "vigentes";
-  const cuerpo: { nif: string; estado: number } = { nif, estado: ESTADO[estado] };
+  const cuerpo = { nif, estado: ESTADO_VIGENTES };
   const bruto = await llamar("/dato/obtener-cargos", usuarioId, cuerpo, opciones.senal);
   if (bruto.estado !== "ok") return bruto;
 
@@ -68,11 +73,7 @@ export async function obtenerCargos(
     : [];
 
   // Una empresa sin ningún cargo publicado no es un error: es una respuesta.
-  return {
-    estado: "ok",
-    datos: { nif, estado, cargos },
-    origenClave: bruto.origenClave,
-  };
+  return { estado: "ok", datos: { nif, cargos }, origenClave: bruto.origenClave };
 }
 
 export interface ActosBorme {
@@ -161,11 +162,12 @@ export async function obtenerDepositosDisponibles(
       })
     : [];
 
+  // `anno`, no `ejercicio`. Leyendo el campo que no era, esto salía vacío
+  // siempre y la herramienta decía «no consta ninguna cuenta» sobre empresas que
+  // sí las tenían. Sin lanzar nada, que es lo peor.
   const ejercicios = [
     ...new Set(
-      depositos
-        .map((d) => (d.ejercicio == null ? "" : String(d.ejercicio)))
-        .filter(Boolean),
+      depositos.map((d) => (d.anno == null ? "" : String(d.anno))).filter(Boolean),
     ),
   ].sort((a, b) => b.localeCompare(a));
 
@@ -179,14 +181,24 @@ export async function obtenerDepositosDisponibles(
 export interface Perfil {
   nif: string;
   razonSocial?: string;
-  domicilio?: string;
+  /** Su campo es `direccion`; `domicilio` no existe. */
+  direccion?: string;
   codigoPostal?: string;
-  poblacion?: string;
+  /** Su campo es `localidad`; `poblacion` no existe. */
+  localidad?: string;
   provincia?: string;
   cnae?: string;
+  cnaeDescripcion?: string;
   objetoSocial?: string;
   fechaConstitucion?: string;
-  situacion?: string;
+  empleados?: string;
+  web?: string;
+  email?: string;
+  registroMercantil?: string;
+  auditor?: string;
+  /** Último ejercicio con cuentas presentadas. Útil antes de ofrecer un depósito. */
+  ultimasCuentas?: string;
+  denominacionAnterior?: string;
 }
 
 export async function obtenerPerfilEmpresa(
@@ -206,17 +218,27 @@ export async function obtenerPerfilEmpresa(
   const e = analizado.success ? analizado.data.empresa : undefined;
 
   const perfil: Perfil = { nif };
-  if (e?.razonsocial) perfil.razonSocial = e.razonsocial;
-  if (e?.domicilio) perfil.domicilio = e.domicilio;
-  if (e?.codigopostal != null) perfil.codigoPostal = String(e.codigopostal);
-  if (e?.poblacion) perfil.poblacion = e.poblacion;
-  if (e?.provincia) perfil.provincia = e.provincia;
-  if (e?.cnae != null) perfil.cnae = String(e.cnae);
-  if (e?.objetosocial) perfil.objetoSocial = e.objetosocial;
-  if (e?.fechaconstitucion != null) {
-    perfil.fechaConstitucion = String(e.fechaconstitucion);
-  }
-  if (e?.situacion) perfil.situacion = e.situacion;
+  const pon = (clave: keyof Perfil, valor: unknown) => {
+    if (valor == null || valor === "") return;
+    perfil[clave] = String(valor) as never;
+  };
+
+  pon("razonSocial", e?.razonsocial);
+  pon("direccion", e?.direccion);
+  pon("codigoPostal", e?.codigopostal);
+  pon("localidad", e?.localidad);
+  pon("provincia", e?.provincia);
+  pon("cnae", e?.cnae);
+  pon("cnaeDescripcion", e?.cnaedescripcion);
+  pon("objetoSocial", e?.objetosocial);
+  pon("fechaConstitucion", e?.fechaconstitucion);
+  pon("empleados", e?.empleados);
+  pon("web", e?.web);
+  pon("email", e?.email);
+  pon("registroMercantil", e?.registromercantil);
+  pon("auditor", e?.auditor);
+  pon("ultimasCuentas", e?.ultimascuentaspresentadas);
+  pon("denominacionAnterior", e?.denominacionanterior);
 
   return { estado: "ok", datos: perfil, origenClave: bruto.origenClave };
 }

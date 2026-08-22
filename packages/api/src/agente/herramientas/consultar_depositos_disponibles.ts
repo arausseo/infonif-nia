@@ -36,9 +36,10 @@ haya depositado o dejado de depositar no es una valoración.`,
         nif,
         ejercicios,
         depositos: depositos.map((d) => ({
-          ejercicio: d.ejercicio,
-          tipo: d.tipo,
-          fecha: d.fechadeposito,
+          ejercicio: d.anno,
+          // 1 = cuentas del grupo. Es el valor que hay que pasarle luego a
+          // descargar_cuentas_anuales, que lo exige.
+          consolidado: String(d.consolidado) === "1",
         })),
         ...(ejercicios.length === 0
           ? { aviso: "No consta ninguna cuenta anual depositada para esta empresa." }

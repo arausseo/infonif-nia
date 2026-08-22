@@ -39,8 +39,8 @@ a una empresa concreta, que es otra cosa.`,
         empresas: empresas.map((e) => ({
           nif: e.nif,
           razonSocial: e.razonsocial,
-          relacion: e.relacion,
-          participacion: e.participacion,
+          // Su API no da porcentaje ni tipo de relación: solo si es la matriz.
+          esMatriz: String(e.matriz) === "1",
         })),
         ...(empresas.length === 0
           ? { aviso: "No consta que esta empresa pertenezca a ningún grupo." }

@@ -12,9 +12,8 @@ consejeros, con su cargo y desde cuándo.
 representa a una empresa concreta. Necesita el NIF: si solo tienes el nombre,
 primero buscar_empresa.
 
-Por defecto devuelve los cargos VIGENTES, que es lo que casi siempre se quiere.
-Pide estado "todos" solo si preguntan explícitamente por cargos históricos o por
-quién estuvo antes.
+Devuelve los cargos VIGENTES. Su API no sabe dar los históricos, así que si
+preguntan por quién estuvo antes, dilo con naturalidad en vez de intentarlo.
 
 Que una empresa no tenga cargos publicados es un resultado válido, no un fallo:
 significa que en el registro no consta ninguno.
@@ -27,20 +26,13 @@ uses para varias empresas de un segmento: es de una en una.`,
   esquema: z
     .object({
       nif: z.string().min(8).max(12).describe("NIF de la empresa"),
-      estado: z
-        .enum(["vigentes", "todos"])
-        .optional()
-        .describe("vigentes por defecto; todos solo si piden histórico"),
     })
     .strict(),
 
-  async ejecutar({ nif, estado }, ctx) {
-    const opciones: { estado?: "vigentes" | "todos"; senal: AbortSignal } = {
+  async ejecutar({ nif }, ctx) {
+    const resultado = await obtenerCargos(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
-    };
-    if (estado) opciones.estado = estado;
-
-    const resultado = await obtenerCargos(nif, ctx.derechos.usuarioId, opciones);
+    });
     if (resultado.estado !== "ok") return sinDato(resultado, "los cargos", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { cargos } = resultado.datos;
@@ -48,12 +40,14 @@ uses para varias empresas de un segmento: es de una en una.`,
     return {
       paraElModelo: {
         nif,
-        estado: resultado.datos.estado,
         cargos: cargos.map((c) => ({
           nombre: c.nombre,
           cargo: c.cargo,
+          estado: c.estado,
           desde: c.fechanombramiento,
           hasta: c.fechacese,
+          // `vinculaciones` NO se expone a propósito: dice en cuántas sociedades
+          // más figura esa persona, y eso es tirar del hilo de alguien.
         })),
         ...(cargos.length === 0
           ? { aviso: "En el registro no consta ningún cargo para esta empresa." }

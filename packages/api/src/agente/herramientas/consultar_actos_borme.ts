@@ -42,9 +42,12 @@ que le vaya mal. Si te piden esa lectura, es valoración de riesgo y no la haces
       paraElModelo: {
         nif,
         actos: actos.map((a) => ({
-          fecha: a.fecha,
-          acto: a.acto,
-          descripcion: a.descripcion,
+          fecha: a.fechaborme,
+          // Viene clasificado: «Nombramientos.» / «Apoderado:» / el nombre.
+          grupo: a.grupo,
+          subgrupo: a.subgrupo,
+          detalle: a.detalle,
+          boe: a.urlficheroborme,
         })),
         ...(todos.length > actos.length
           ? { hayMas: todos.length - actos.length }
