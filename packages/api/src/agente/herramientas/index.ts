@@ -9,6 +9,8 @@ import consultarCargos from "./consultar_cargos.js";
 import consultarCreditos from "./consultar_creditos.js";
 import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
 import consultarEmpresasGrupo from "./consultar_empresas_grupo.js";
+import consultarRai from "./consultar_rai.js";
+import descargarCuentasAnuales from "./descargar_cuentas_anuales.js";
 import consultarSaldo from "./consultar_saldo.js";
 import cotizar from "./cotizar.js";
 import obtenerFichaPublica from "./obtener_ficha_publica.js";
@@ -36,6 +38,12 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   consultarActosBorme,
   consultarEmpresasGrupo,
   consultarDepositosDisponibles,
+
+  // Familia /producto: entregan lo que el cliente ya compró en el portal. NO
+  // cobran —el cobro fue en la web— pero pueden responder «no contratado», que
+  // es una tercera moneda distinta de los créditos y de los registros.
+  consultarRai,
+  descargarCuentasAnuales,
   consultarCreditos,
 
   consultarSaldo,

@@ -6,9 +6,8 @@ Todo comprobado **contra el API real**, no leído del `serverless.yml` — que n
 un inventario fiable: `GET /buscador` funciona y no aparece ahí, y `retir/*`
 aparece y no se comporta como dice el código.
 
-Método para las que cobran: se sondearon con **cuerpo vacío**. Validan el NIF
-antes de llamar al servicio de aguas arriba, así que un `{}` devuelve `400 Falta
-NIF` y revela el contrato sin llegar a comprar nada.
+Los contratos se sacaron sondeando: un cuerpo vacío devuelve `400 Falta el campo
+X` y va nombrando lo que falta, uno a uno, hasta completarlo.
 
 ---
 
@@ -21,7 +20,7 @@ las tres y no se convierten entre sí.
 |---|---|---|
 | **Registros de plan** | descargar listados segmentados | `/bases-de-datos/` |
 | **Créditos de consulta** | abrir la ficha de una empresa (`/dato`) | aparte |
-| **Pago por producto** | un informe, un RAI, un depósito | por unidad |
+| **Pago por producto** | un informe, un RAI, un depósito | en la web, por unidad |
 
 Mandar al usuario a recargar la que no es le hace perder el viaje, así que cada
 herramienta declara cuál gasta.
@@ -97,62 +96,73 @@ falta saldo o falta el alta. **Lo que hay que pedir a Infonif es el alta con
 
 ---
 
-## `/producto` — no integrada, y no por falta de tiempo
+## `/producto` — entregar lo ya comprado
 
-Aquí está el dinero de verdad, y por eso hay que pararse.
+**Estas operaciones no cobran, y es lo que más despista del gateway entero.**
+`solicitar-*` suena a «comprar» y no lo es: el cliente compra el producto en la
+web y esto solo pide que se le entregue. Quien comprueba que la compra existe es
+el servicio de aguas arriba.
 
-### Las que compran
+Por eso no chocan con la regla de que el agente no ejecuta cobros: no hay cobro
+que ejecutar. Y por eso tampoco pasan por el control de créditos de consulta —son
+otra moneda— cosa que confirma su código: ninguna llama a `deductCredits`.
 
-| Endpoint | Cuerpo | Qué hace |
+### Contratos, comprobados uno a uno
+
+No había forma de deducirlos: el `serverless.yml` no los describe y el gateway
+solo reenvía. Se sacaron probando.
+
+| Endpoint | Cuerpo | Estado |
 |---|---|---|
-| `solicitar-rai` | `{nif}` | pide un RAI |
-| `solicitar-informe` | `{nif, tipo}` con tipo 6 u 11 | pide un informe |
-| `solicitar-deposito` | `{nif, …}` | pide unas cuentas |
+| `obtener-rai` | `{nif}` | **integrado** (`consultar_rai`) |
+| `solicitar-rai` | `{nif}` | disponible |
+| `solicitar-informe` | `{nif, tipo}` con tipo `6` u `11` | disponible |
+| `obtener-informe` | `{id}` del solicitar | disponible |
+| `obtener-deposito-pdf` | `{nif, ejercicio, consolidado}` | **integrado** (`descargar_cuentas_anuales`) |
+| `obtener-partidas-deposito` | `{nif, ejercicio, consolidado}` | disponible |
+| `solicitar-deposito` | `{nif, ejercicio, consolidado}` | disponible |
+| `estado-partidas-deposito` | `{nif, ejercicio, consolidado}` | disponible |
+| `obtener-titularidad-real` | `{nif}` | ver abajo |
 
-**Estas tres no pueden ser herramientas del modelo.** No es una cuestión de
-prudencia: la regla del proyecto dice que el agente nunca ejecuta un cobro, y
-esto es un cobro.
+**`consolidado` es obligatorio y no tiene valor por defecto.** Con NIF y ejercicio
+pero sin él, responden `400 Falta el campo consolidado`. No está documentado en
+ningún sitio; se descubrió probando. `false` son las cuentas individuales.
 
-Y hay un agravante que conviene conocer: **el gateway no descuenta nada al
-llamarlas**. Reenvía la petición a un servicio interno (`httpPost`) y registra el
-histórico con coste cero. El cargo ocurre aguas arriba, **donde este código no lo
-ve**. Es decir, leyendo `icif-apigw` no se puede saber cuánto cuesta una llamada
-a `solicitar-informe`. Eso hay que preguntarlo.
+### Los dos 401 significan cosas opuestas
 
-La forma correcta de integrarlas es la que ya está diseñada para el flujo de
-compra: el agente **prepara** la compra y devuelve una tarjeta de confirmación
-con su importe; el usuario pulsa; y quien llama a `solicitar-*` es el servidor
-tras el pago. El agente propone, no ejecuta.
+Es la trampa de esta familia, y se distinguen solo por el texto:
 
-### Las que recuperan
+| Cuerpo del 401 | De dónde viene | Qué significa |
+|---|---|---|
+| `Unauthorized - Falta API Key` | del gateway | fallo de configuración nuestro |
+| `No autorizado` | traducido de aguas arriba | **el producto no está contratado** |
 
-| Endpoint | Cuerpo |
-|---|---|
-| `obtener-rai` | `{nif}` |
-| `obtener-informe` | `{id}` — el que devuelve `solicitar-informe` |
-| `obtener-deposito-pdf` | `{nif}` |
-| `obtener-partidas-deposito` | `{nif}` |
-| `obtener-titularidad-real` | `{nif}` |
+Confundirlos sería grave en las dos direcciones: tratar una compra que falta como
+una avería deja de vender, y tratar una avería como una compra que falta manda al
+usuario a pagar por algo que ya tiene. El cliente los separa por el cuerpo.
 
-Éstas sí son seguras en principio —recuperan algo ya comprado, y su propia
-documentación dice que reconsultar no debería generar un segundo cobro— pero
-**sin el flujo de compra no sirven para nada**: no hay nada que recuperar.
+Comprobado con la clave de pruebas: RAI e informes dan `401 No autorizado` —no
+contratados—, mientras que `obtener-titularidad-real` da **404**, o sea que ahí sí
+hay acceso y simplemente no hay datos de esa empresa.
 
-Así que la familia entera está bloqueada por la misma pieza, y esa pieza es de
-diseño de producto, no de integración.
+### Titularidad real: integrada la capa, no la herramienta
+
+`obtenerTitularidadReal` existe en `datos/` y funciona. **No se expone como
+herramienta del agente todavía**, y no por dificultad técnica: son datos de
+personas físicas, y antes de servirlos desde una conversación hay que decidir
+bajo qué base legal.
+
+Es una decisión que no me corresponde tomar sola en un fichero de código.
 
 ### RETIR
 
 Ocho endpoints (`retir-*` y `retir/*`, más tres en `/dev/`). Todos responden
 `400 Body no es un JSON válido` incluso con un JSON válido, aunque su código usa
-el mismo `getNif` que el resto.
+el mismo `getNif` que el resto. O el despliegue no coincide con el repositorio, o
+esperan algo que no está en el código que hemos leído.
 
-O el despliegue no coincide con el repositorio, o esas rutas esperan algo que no
-está en el código que hemos leído. **No se toca hasta preguntar**, porque además
-son las de titularidad real: datos de personas físicas, con lo que eso implica en
-protección de datos.
-
----
+No se toca hasta preguntar. Y valen las mismas cautelas: también son datos de
+personas.
 
 ## Qué pedir a Infonif
 
@@ -161,9 +171,9 @@ Por orden de lo que desbloquea:
 1. **Alta de la apikey en la tabla de créditos con `tipo = "icif"`.** Sin esto la
    familia `/dato` no se puede contrastar contra datos reales, y sus formas de
    respuesta siguen deducidas del código.
-2. **Cuánto cuesta cada `solicitar-*`.** No está en el gateway; el cargo ocurre
-   aguas arriba. Sin ese dato no se puede enseñar un importe al usuario, y la
-   regla dice que un precio que no viene de una herramienta no se dice.
+2. **Una clave con algún producto contratado**, para contrastar las respuestas de
+   `/producto`. Hoy todas dan `401 No autorizado`, que es la vía correcta pero no
+   enseña la forma del dato cuando sí lo hay.
 3. **Qué pasa con RETIR**, y bajo qué base legal se pueden servir datos de
    titularidad real desde una conversación.
 4. **Si `obtener-balance-resumido` aporta algo** sobre las magnitudes que ya

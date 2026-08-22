@@ -40,6 +40,12 @@ export type ResultadoIcif<T> =
   | { estado: "ok"; datos: T; origenClave: OrigenClave }
   | { estado: "sinDatos"; origenClave: OrigenClave }
   | { estado: "sinCreditos"; origenClave: OrigenClave }
+  /**
+   * La credencial vale, pero no da acceso a ESE producto. Es la vía de «no lo
+   * tiene comprado»: la familia `/producto` sirve cosas que el cliente compra en
+   * la web, y quien valida la compra es el servicio de aguas arriba.
+   */
+  | { estado: "noAutorizado"; origenClave: OrigenClave }
   | { estado: "sinClave" };
 
 interface Opciones {
@@ -107,14 +113,38 @@ export async function icif<T = unknown>(
       return { estado: "sinCreditos", origenClave: clave.origen };
     }
 
-    // 401: la clave no vale. Que sea la genérica es un fallo de configuración
-    // nuestro; que sea la del usuario, una clave caducada en el portal.
+    /**
+     * Hay DOS 401 y significan cosas opuestas. Se distinguen por el texto, que
+     * es feo pero es lo único que los separa:
+     *
+     * - «Falta API Key» lo emite el propio gateway cuando no ve la cabecera. Es
+     *   un fallo nuestro de configuración.
+     * - «No autorizado» viene traducido del servicio de aguas arriba, y quiere
+     *   decir que la clave es buena pero no da acceso a ese producto — o sea,
+     *   que el usuario no lo ha comprado.
+     *
+     * Confundirlos sería grave en las dos direcciones: tratar una compra que
+     * falta como una avería deja de vender, y tratar una avería como una compra
+     * que falta manda al usuario a pagar por algo que ya tiene.
+     */
     if (respuesta.status === 401) {
-      registro.warn(
-        { ruta, clave: clave.origen },
-        "el gateway rechaza la ICIF-APIKEY",
-      );
-      throw new ErrorIcif(401, ruta, "clave rechazada");
+      const detalle = (await respuesta.text()).slice(0, 300);
+
+      if (/no autorizado/i.test(detalle)) {
+        registro.info(
+          { ruta, usuarioId, clave: clave.origen },
+          "el producto no está contratado para esta clave",
+        );
+        return { estado: "noAutorizado", origenClave: clave.origen };
+      }
+
+      registro.warn({ ruta, clave: clave.origen }, "el gateway rechaza la clave");
+      throw new ErrorIcif(401, ruta, detalle || "clave rechazada");
+    }
+
+    // 404: llegó al servicio y ahí no hay nada de esa empresa.
+    if (respuesta.status === 404) {
+      return { estado: "sinDatos", origenClave: clave.origen };
     }
 
     if (!respuesta.ok) {

@@ -60,6 +60,20 @@ export async function sinDato(
     };
   }
 
+  if (resultado.estado === "noAutorizado") {
+    return {
+      paraElModelo: {
+        hayDatos: false,
+        motivo: "noContratado",
+        requiereCompra: true,
+        // Moneda distinta otra vez: esto no son créditos de consulta ni
+        // registros de plan. Es un producto que se compra suelto en la web.
+        moneda: "producto",
+        aviso: `Ese producto no está contratado para este usuario, así que no tienes ${queSeBuscaba}. Explícale qué incluye y dile que puede adquirirlo en el portal. OJO: no es cuestión de créditos ni de registros del plan, es una compra aparte. Y no des el dato: no lo tienes.`,
+      },
+    };
+  }
+
   return {
     paraElModelo: {
       hayDatos: false,
