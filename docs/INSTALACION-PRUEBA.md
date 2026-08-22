@@ -147,6 +147,55 @@ Sin eso, el `proxy_pass` a Nia da **502** y en el log de nginx aparece
 
 ---
 
+## 1.3 Actualizar una instalación que ya funciona
+
+Si Nia ya está corriendo y solo hay que subir una versión nueva, esto es todo.
+**No hace falta tocar Redis, ni Node, ni el nginx, ni el ASP.**
+
+```bash
+sudo systemctl stop nia
+
+# El código nuevo, por donde venga (ver 2.1 si no hay git)
+cd /opt/nia/app
+sudo git pull          # o desplegar el tar encima
+
+sudo pnpm install --frozen-lockfile
+sudo pnpm build
+sudo chown -R nia:nia /opt/nia
+
+sudo systemctl start nia
+sudo systemctl status nia --no-pager
+```
+
+**`pnpm build` NO regenera los embeddings** si el corpus no ha cambiado: los
+artefactos están versionados y el script compara modelo, dimensiones y lista de
+códigos antes de hacer nada. Tiene que decir «Los artefactos están al día». Si se
+pone a vectorizar, es que el corpus cambió de verdad — y entonces necesita ~4 GB
+o lo mata el OOM killer (aquel `exit 137`).
+
+### Qué mirar después
+
+```bash
+curl -s http://localhost:3000/salud/dependencias | python3 -m json.tool
+```
+
+Que `infonif`, `redis` y `claveIcif` estén bien. Y una conversación real de punta
+a punta, que es lo único que prueba que el bucle funciona.
+
+### Si la versión trae variables nuevas
+
+Están todas en `.env.example` con su explicación. La forma rápida de ver cuáles
+faltan en tu `.env`:
+
+```bash
+comm -13 <(grep -oE '^[A-Z_]+=' /opt/nia/app/.env | sort -u)          <(grep -oE '^[A-Z_]+=' /opt/nia/app/.env.example | sort -u)
+```
+
+Las que no pongas se quedan con su valor por defecto, que para casi todas es el
+bueno. Las que no tienen defecto son las credenciales.
+
+---
+
 ## 2. Desplegar el código
 
 Se clona y se compila como root, y al final se cede la propiedad. Hacerlo «como
