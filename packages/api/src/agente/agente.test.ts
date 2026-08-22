@@ -28,6 +28,8 @@ describe("registro de herramientas", () => {
       "consultar_empresas_grupo",
       "consultar_rai",
       "consultar_saldo",
+      "consultar_socios",
+      "consultar_titularidad_real",
       "cotizar",
       "descargar_cuentas_anuales",
       "obtener_ficha_publica",
@@ -70,6 +72,32 @@ describe("registro de herramientas", () => {
       (h) => !/\bNO\b|nunca|Nunca/.test(h.descripcion),
     ).map((h) => h.nombre);
     expect(sinNegativa).toEqual([]);
+  });
+
+  it("las de datos personales solo aceptan un NIF, nunca un nombre", () => {
+    // La salvaguarda que de verdad importa en titularidad real y socios: el
+    // sentido de la consulta. De sociedad a personas es un dato registral; de
+    // persona a sociedades es perfilado, y no se hace ni aunque su API lo
+    // permitiera. Si alguien añade aquí un parámetro `nombre` o `persona`, esto
+    // salta.
+    for (const nombre of ["consultar_titularidad_real", "consultar_socios"]) {
+      const herramienta = herramientaPorNombre(nombre);
+      expect(herramienta, nombre).toBeDefined();
+
+      const esquema = HERRAMIENTAS_PARA_EL_MODELO.find((h) => h.name === nombre);
+      const propiedades = Object.keys(
+        (esquema?.input_schema.properties ?? {}) as Record<string, unknown>,
+      );
+      expect(propiedades, nombre).toContain("nif");
+      for (const prohibido of ["nombre", "persona", "titular", "socio", "dni"]) {
+        expect(propiedades, `${nombre} no puede aceptar ${prohibido}`).not.toContain(
+          prohibido,
+        );
+      }
+
+      // Y que quede dicho en el prompt, que es lo que lee el modelo.
+      expect(herramienta?.descripcion, nombre).toMatch(/persona|NUNCA al revés|perfil/i);
+    }
   });
 
   it("cada una tiene texto de progreso para el primer status", () => {

@@ -155,11 +155,20 @@ export async function icif<T = unknown>(
     const texto = await respuesta.text();
     if (!texto) return { estado: "sinDatos", origenClave: clave.origen };
 
-    return {
-      estado: "ok",
-      datos: JSON.parse(texto) as T,
-      origenClave: clave.origen,
-    };
+    const datos = JSON.parse(texto) as T;
+
+    // TERCERA forma de decir «no hay nada», después del 204 y del 404: un 200
+    // cuyo cuerpo es el JSON `""`. Lo devuelve `retir/obtener-socios` y se
+    // encontró probando con un NIF real, no leyendo el código.
+    //
+    // Sin esto la herramienta contestaba «ok» con un dato vacío, que es la peor
+    // de las tres salidas posibles: el modelo recibe una respuesta afirmativa y
+    // se queda sin nada que decir, así que rellena el hueco él.
+    if (estaVacio(datos)) {
+      return { estado: "sinDatos", origenClave: clave.origen };
+    }
+
+    return { estado: "ok", datos, origenClave: clave.origen };
   } catch (error) {
     if (error instanceof ErrorIcif) throw error;
     if (error instanceof Error && error.name === "AbortError") {
@@ -193,6 +202,20 @@ export class ErrorIcif extends ErrorNia {
     this.estado = estado;
     this.ruta = ruta;
   }
+}
+
+/**
+ * ¿Esto es un «no hay datos» disfrazado de respuesta correcta?
+ *
+ * Cadena vacía, objeto sin claves o lista sin elementos. Los tres significan lo
+ * mismo viniendo de este gateway, y ninguno es un dato que enseñar.
+ */
+function estaVacio(datos: unknown): boolean {
+  if (datos == null) return true;
+  if (typeof datos === "string") return datos.trim() === "";
+  if (Array.isArray(datos)) return datos.length === 0;
+  if (typeof datos === "object") return Object.keys(datos).length === 0;
+  return false;
 }
 
 /** Igual que en el cliente del buscador: `fetch failed` a secas no dice nada. */

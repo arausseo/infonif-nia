@@ -145,24 +145,47 @@ Comprobado con la clave de pruebas: RAI e informes dan `401 No autorizado` —no
 contratados—, mientras que `obtener-titularidad-real` da **404**, o sea que ahí sí
 hay acceso y simplemente no hay datos de esa empresa.
 
-### Titularidad real: integrada la capa, no la herramienta
+### Titularidad real y socios — integradas, con salvaguardas
 
-`obtenerTitularidadReal` existe en `datos/` y funciona. **No se expone como
-herramienta del agente todavía**, y no por dificultad técnica: son datos de
-personas físicas, y antes de servirlos desde una conversación hay que decidir
-bajo qué base legal.
+Son **datos de personas físicas** y el RGPD aplica. Se integran a petición
+expresa, y lo que hace el código para que no se desmande:
 
-Es una decisión que no me corresponde tomar sola en un fichero de código.
+- **No se consultan salvo que el usuario lo pida.** Está en la descripción de
+  cada herramienta, que es lo que lee el modelo: «si nadie ha preguntado, no se
+  consulta». No es como mirar un CNAE de más.
+- **Van de sociedad a personas y nunca al revés.** Sus esquemas solo aceptan un
+  NIF. Hay un test que falla si alguien añade un parámetro `nombre`, `persona`,
+  `titular`, `socio` o `dni`, porque ese sería el cambio que convierte un dato
+  registral en perfilado.
+- **Se presentan sin valorar.** El resultado lleva un recordatorio explícito de
+  que son hechos registrales.
 
-### RETIR
+| Herramienta | Ruta | Qué responde hoy |
+|---|---|---|
+| `consultar_titularidad_real` | `producto/obtener-titularidad-real` | 404 sobre Mercadona |
+| `consultar_titularidad_real` con `declaracion` | `retir/obtener-declaracion-titularidad-real` | 401: no contratado |
+| `consultar_socios` | `retir/obtener-socios` | 200 con cuerpo `""` |
 
-Ocho endpoints (`retir-*` y `retir/*`, más tres en `/dev/`). Todos responden
-`400 Body no es un JSON válido` incluso con un JSON válido, aunque su código usa
-el mismo `getNif` que el resto. O el despliegue no coincide con el repositorio, o
-esperan algo que no está en el código que hemos leído.
+### RETIR sí funciona
 
-No se toca hasta preguntar. Y valen las mismas cautelas: también son datos de
-personas.
+Lo que fallaba antes era el sondeo, no las rutas: se probaron con `{}` y lo que
+respondían era el `getNif` quejándose. **Con un NIF real responden.**
+
+Se usa `retir/obtener-socios` y no `retir-socios`: sobre el mismo NIF, la nueva
+da 200 y la vieja 404.
+
+### La tercera forma de decir «no hay datos»
+
+`retir/obtener-socios` devuelve **200 con el cuerpo `""`** —el JSON de una cadena
+vacía— cuando no hay nada. Ni 204 ni 404: un 200 que parece bueno.
+
+Esto era un fallo silencioso de nuestro cliente, encontrado probando con un NIF
+real: daba la respuesta por válida y la herramienta contestaba «ok» con un dato
+vacío. Es la peor de las salidas posibles, porque el modelo recibe una respuesta
+afirmativa sin contenido y ahí es justo donde rellena el hueco por su cuenta.
+
+El cliente trata ahora como «sin datos» la cadena vacía, el objeto sin claves y
+la lista sin elementos.
 
 ## Qué pedir a Infonif
 

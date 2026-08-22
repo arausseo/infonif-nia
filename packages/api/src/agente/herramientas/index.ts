@@ -10,6 +10,8 @@ import consultarCreditos from "./consultar_creditos.js";
 import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
 import consultarEmpresasGrupo from "./consultar_empresas_grupo.js";
 import consultarRai from "./consultar_rai.js";
+import consultarSocios from "./consultar_socios.js";
+import consultarTitularidadReal from "./consultar_titularidad_real.js";
 import descargarCuentasAnuales from "./descargar_cuentas_anuales.js";
 import consultarSaldo from "./consultar_saldo.js";
 import cotizar from "./cotizar.js";
@@ -44,6 +46,12 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   // es una tercera moneda distinta de los créditos y de los registros.
   consultarRai,
   descargarCuentasAnuales,
+
+  // Datos de personas físicas. Van al final y juntas para que se vea de un
+  // vistazo cuáles son: sus descripciones piden explícitamente que no se
+  // consulten salvo que el usuario lo pida.
+  consultarSocios,
+  consultarTitularidadReal,
   consultarCreditos,
 
   consultarSaldo,

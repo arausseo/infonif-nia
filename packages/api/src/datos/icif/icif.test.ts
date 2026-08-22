@@ -31,6 +31,35 @@ describe("comoLista", () => {
   });
 });
 
+describe("respuestas vacías del gateway", () => {
+  /**
+   * Este gateway tiene TRES formas de decir «no hay datos» y solo dos son
+   * evidentes: 204 sin cuerpo y 404. La tercera es un 200 cuyo cuerpo es el JSON
+   * `""`, y la devuelve `retir/obtener-socios`. Se encontró probando con un NIF
+   * real; leyendo su código no aparece.
+   *
+   * Importa porque el fallo era silencioso: la herramienta contestaba «ok» con
+   * un dato vacío, el modelo recibía una respuesta afirmativa sin contenido, y
+   * ahí es exactamente donde se lo inventa.
+   */
+  it("un 200 con cuerpo vacío no es un dato", () => {
+    for (const vacio of ['""', "{}", "[]", "null"]) {
+      const datos: unknown = JSON.parse(vacio);
+      const esVacio =
+        datos == null ||
+        (typeof datos === "string" && datos.trim() === "") ||
+        (Array.isArray(datos) && datos.length === 0) ||
+        (typeof datos === "object" && Object.keys(datos).length === 0);
+      expect(esVacio, `${vacio} debería contar como vacío`).toBe(true);
+    }
+  });
+
+  it("pero un dato de verdad sí pasa", () => {
+    const datos: unknown = JSON.parse('{"socios":[{"nombre":"X"}]}');
+    expect(Object.keys(datos as object).length).toBeGreaterThan(0);
+  });
+});
+
 describe("sinDato", () => {
   it("«no hay nada de esto» no es una venta", async () => {
     const r = await sinDato({ estado: "sinDatos", origenClave: "usuario" }, "los cargos");

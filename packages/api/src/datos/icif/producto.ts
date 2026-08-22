@@ -137,13 +137,38 @@ export async function solicitarDeposito(
   });
 }
 
+// ─── Titularidad real y socios ───────────────────────────────────────────────
+
 /**
- * Titularidad real: quién está detrás de la sociedad.
+ * Quién está detrás de una sociedad.
  *
- * Son **datos de personas físicas**. Con la clave de pruebas responde 404 en vez
- * de 401, o sea que el acceso sí está concedido y simplemente no hay datos de
- * esa empresa. No se expone como herramienta todavía: antes hay que decidir bajo
- * qué base legal se sirve esto desde una conversación.
+ * **Esto son datos de personas físicas y el RGPD aplica.** No es una cautela
+ * decorativa: la titularidad real identifica a personas concretas por su nombre y
+ * su participación, y el registro existe para prevención de blanqueo, no para
+ * perfilar a nadie.
+ *
+ * Lo que hace el código para que eso no se desmande:
+ *
+ * - **No se consulta salvo que lo pidan.** Las descripciones de las herramientas
+ *   lo dicen explícitamente, porque una consulta especulativa aquí no es como
+ *   consultar el CNAE.
+ * - **Va de sociedad a personas, nunca al revés.** No hay forma de buscar en qué
+ *   sociedades está una persona, y no se va a añadir aunque su API lo permitiera.
+ * - **Si no está contratado, no hay dato.** El 401 de aguas arriba se respeta
+ *   igual que en el resto: el dato no entra al contexto del modelo.
+ *
+ * Hay **dos vías** y devuelven cosas distintas. Comprobado con la clave de
+ * pruebas sobre Mercadona:
+ *
+ * | Ruta | Respuesta | Lectura |
+ * |---|---|---|
+ * | `producto/obtener-titularidad-real` | 404 | hay acceso, no hay dato |
+ * | `producto/retir/obtener-declaracion-titularidad-real` | 401 | no contratado |
+ * | `producto/retir/obtener-socios` | 200 vacío | hay acceso, no hay dato |
+ * | `producto/retir-socios` | 404 | la ruta vieja |
+ *
+ * Se usan las dos que responden con acceso concedido, y la declaración RETIR
+ * queda como complemento para quien la tenga contratada.
  */
 export async function obtenerTitularidadReal(
   nif: string,
@@ -151,6 +176,44 @@ export async function obtenerTitularidadReal(
   opciones: { senal?: AbortSignal } = {},
 ): Promise<ResultadoIcif<unknown>> {
   return icif("/producto/obtener-titularidad-real", usuarioId, {
+    cuerpo: { nif },
+    ...(opciones.senal ? { senal: opciones.senal } : {}),
+  });
+}
+
+/**
+ * La declaración de titularidad real del RETIR.
+ *
+ * Es el documento formal, frente al dato suelto de `obtenerTitularidadReal`.
+ * Requiere contratación aparte: con la clave de pruebas responde 401.
+ */
+export async function obtenerDeclaracionTitularidadReal(
+  nif: string,
+  usuarioId: number | undefined,
+  opciones: { senal?: AbortSignal } = {},
+): Promise<ResultadoIcif<unknown>> {
+  return icif("/producto/retir/obtener-declaracion-titularidad-real", usuarioId, {
+    cuerpo: { nif },
+    ...(opciones.senal ? { senal: opciones.senal } : {}),
+  });
+}
+
+/**
+ * Los socios de una sociedad.
+ *
+ * Se usa la ruta nueva (`retir/obtener-socios`): la vieja `retir-socios`
+ * responde 404 sobre el mismo NIF donde la nueva responde 200.
+ *
+ * Ojo con la respuesta vacía: devuelve **200 con cuerpo vacío** cuando no hay
+ * datos, no un 204. El cliente ya lo trata como «sin datos», pero conviene
+ * saberlo porque es otra convención distinta de la del resto del gateway.
+ */
+export async function obtenerSocios(
+  nif: string,
+  usuarioId: number | undefined,
+  opciones: { senal?: AbortSignal } = {},
+): Promise<ResultadoIcif<unknown>> {
+  return icif("/producto/retir/obtener-socios", usuarioId, {
     cuerpo: { nif },
     ...(opciones.senal ? { senal: opciones.senal } : {}),
   });
