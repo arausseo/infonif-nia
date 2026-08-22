@@ -102,7 +102,9 @@ pasa— es el diferenciador del producto, y los frameworks abstraen justo esa ca
 
 ### Las herramientas
 
-Nueve, con nombre en español porque su descripción forma parte del prompt:
+Catorce, con nombre en español porque su descripción forma parte del prompt.
+
+Segmentación y venta, contra el API del buscador:
 
 | Herramienta | Qué hace |
 |---|---|
@@ -115,6 +117,23 @@ Nueve, con nombre en español porque su descripción forma parte del prompt:
 | `comparar_empresas` | compara varias |
 | `consultar_saldo` | registros disponibles del plan del usuario |
 | `recomendar_producto` | qué informe cubre lo que se pide |
+
+Datos de una empresa concreta, contra el gateway. Comparten credencial, coste y
+forma de fallar:
+
+| Herramienta | Qué hace |
+|---|---|
+| `consultar_cargos` | quién administra o representa |
+| `consultar_actos_borme` | qué se ha publicado y cuándo |
+| `consultar_empresas_grupo` | matriz, filiales y participadas |
+| `consultar_depositos_disponibles` | de qué ejercicios hay cuentas |
+| `consultar_creditos` | saldo de consulta y consumo del mes |
+
+**Hay dos monedas y el usuario llama «créditos» a las dos.** Los registros de un
+plan de Base de Datos sirven para descargar listados; los créditos de consulta,
+para abrir fichas de empresa. Se compran aparte y no se convierten entre sí.
+Confundirlas manda al usuario a recargar donde no es, así que las herramientas
+declaran cuál gastan y el prompt lo advierte.
 
 Cada una valida su entrada con **Zod en modo estricto**. El modelo nunca emite
 SQL ni DSL de Elasticsearch: emite un objeto JSON validado que el código compila
@@ -238,10 +257,14 @@ Todo lo descrito hasta aquí se apoya en **una sola fuente**: el API REST que
 alimenta al buscador de bases de datos. Es la que hacía falta para la prueba de
 concepto, pero no es la única que existe.
 
-`icif-apigw` es un API Gateway sobre AWS (Serverless, Node) con **31 endpoints**
-ya en producción, agrupados en tres familias. Nia todavía no habla con ninguno.
-Merece la pena mirar qué desbloquearía cada una, porque el coste de integrarlas
-es bajo y lo que abren no lo es.
+`icif-apigw` es un API Gateway sobre AWS (Serverless, Node) con una treintena de
+endpoints en producción, agrupados en tres familias. **Dos ya están integradas**
+—`/dato` y la parte de lectura de `/credito`— y este apartado cuenta qué se
+aprendió al hacerlo y qué queda.
+
+Un aviso de método antes de nada: el `serverless.yml` del repositorio **no es un
+inventario fiable de lo desplegado**. `GET /buscador`, que funciona, no aparece
+ahí. Todo lo que sigue está comprobado contra el API real, no leído del código.
 
 ### `/credito` — la pieza que falta para vender
 
@@ -295,9 +318,9 @@ empieza a pagar.
 
 ```
 agente/  ──►  datos/  ──┬──►  bbdd-api.infonif.es     (integrado)
-                        ├──►  icif-apigw /dato        (pendiente)
-                        ├──►  icif-apigw /producto    (pendiente)
-                        └──►  icif-apigw /credito     (pendiente)
+                        ├──►  api.infonif.es /dato    (integrado)
+                        ├──►  api.infonif.es /credito (integrado: lectura)
+                        └──►  api.infonif.es /producto (pendiente)
 ```
 
 Un API nuevo es **un adaptador más en `datos/`**. El bucle del agente no cambia,
@@ -309,21 +332,62 @@ Las reglas siguen aplicando sin excepción: los derechos se verifican dentro de 
 herramienta, el precio se calcula en servidor y el agente sigue sin ejecutar
 cobros. Añadir una fuente no añade una vía de escape.
 
-### Lo que hay que resolver antes
+### Lo que se aprendió integrándolo
 
-Tres cosas, y ninguna es de diseño:
+**Autenticación: son dos cabeceras, no una.** Es lo más confuso de este API y no
+está documentado en ninguna parte. `x-api-key` es la puerta de AWS; `ICIF-APIKEY`
+es la cuenta de créditos de la aplicación. No son alternativas.
 
-**Autenticación.** No he encontrado configuración de autorizador ni de clave de
-API en el `serverless.yml`. Hay que confirmar cómo se acredita quien llama y si
-ese mecanismo encaja con el puente de sesión que ya usa Nia.
+Se estableció probando, que es la única forma:
 
-**Identidad del usuario.** Los endpoints de crédito operan sobre un usuario
-concreto. Hay que verificar que el identificador que viaja en el token de Nia es
-el mismo que espera el gateway.
+| Cabeceras enviadas | Respuesta de `/dato` |
+|---|---|
+| solo `x-api-key` | `401 Falta API Key` |
+| solo `ICIF-APIKEY` | `403 No tiene créditos` |
+| las dos | `403 No tiene créditos` |
 
-**Entorno.** El gateway está en AWS; Nia, en la red interna del cliente. Hay que
-comprobar la salida y la latencia, que no es lo mismo llamar a un servicio de la
-LAN que a uno en la nube.
+El matiz está en el 403: significa que la petición **pasó la autenticación** y
+llegó al control de saldo. `/buscador` es al revés — quiere la de AWS. Nia manda
+las dos.
+
+**Identidad: la clave del usuario NO viaja en el token.** El ASP la manda en
+`/internal/mint`, servidor a servidor, y se guarda en Redis con el TTL de la
+sesión. El token sigue llevando solo el `usuarioId`.
+
+La razón es que la carga del token es `base64url`: va **firmada pero no
+cifrada**. Cualquiera con el token la decodifica desde la consola del navegador.
+Con un identificador de usuario eso da igual; con una credencial que gasta saldo
+de su titular, no. El identificador es la llave del casillero, no su contenido.
+
+**El coste no es por llamada: es 1 crédito por NIF y por mes.** Verificado en su
+código, no supuesto: antes de descontar comprueban si ese NIF ya aparece en el
+historial del mes y, si aparece, no descuentan. Además cachean por NIF.
+
+Esto invierte por completo la orientación al modelo. Con coste por llamada habría
+que pedirle que consultara lo justo; con coste por empresa, **una vez abierta una
+ficha, mirar además cargos, grupo y BORME sale gratis**, y quedarse corto solo
+obliga al usuario a repreguntar. Lo caro es abrir empresas nuevas.
+
+**Y `GET /buscador` del gateway es el autocompletado de siempre**, byte a byte.
+No se cambió `buscar_empresa` para usarlo: no aporta ningún campo nuevo y añadiría
+una dependencia de credencial donde hoy no hay ninguna.
+
+### Lo que sigue abierto
+
+**Entorno.** El gateway está en AWS; Nia, en la red interna del cliente. Falta
+comprobar salida y latencia desde la máquina de producción, que no es lo mismo
+llamar a un servicio de la LAN que a uno en la nube.
+
+**Una clave con saldo.** Las credenciales de prueba disponibles devuelven
+`403 No tiene créditos` en toda la familia `/dato`, así que las formas de
+respuesta siguen deducidas de su código y no contrastadas contra datos reales.
+
+Ojo con un detalle que despista: `consultar-creditos` responde `{"cantidad": 0}`
+**tanto si el saldo es cero como si la clave no está dada de alta** —usa una
+función que devuelve `0` cuando no encuentra el registro, mientras que `/dato` usa
+otra que lanza 403—. Una clave inventada da exactamente la misma respuesta. Así
+que lo más probable es que haya que **dar de alta la clave** en la tabla de
+créditos con `tipo = "icif"`, no recargarla.
 
 ---
 
@@ -361,8 +425,8 @@ esfuerzo:
 1. **`/credito`** — cierra el ciclo de venta, que es lo que convierte la demo en
    producto. Es además donde hoy hay un apaño que habrá que quitar de todas
    formas.
-2. **`/dato`** — el salto más visible en la conversación, y el de menor riesgo:
-   son consultas de lectura, sin dinero de por medio.
+2. **`/dato`** — el salto más visible en la conversación. Son consultas de
+   lectura, pero **sí gastan saldo**: no es la integración gratuita que parecía.
 3. **`/producto`** — el de más recorrido comercial, pero también el que más
    depende de tener resuelto lo anterior.
 
