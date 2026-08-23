@@ -2,6 +2,7 @@ import { z } from "zod";
 import { obtenerBalanceResumido } from "../../datos/icif/dato.js";
 import { definirTool } from "../tipos.js";
 import { sinDato } from "./_icif.js";
+import { saldoTrasConsultar } from "./_saldo.js";
 
 /**
  * Las que se devuelven si no piden otra cosa.
@@ -82,6 +83,7 @@ produce el Informe de Riesgo, nunca tú.`,
     const usuarioId = ctx.derechos.usuarioId;
     const resultado = await obtenerBalanceResumido(nif, usuarioId, {
       senal: ctx.senal,
+      ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     });
 
     if (resultado.estado !== "ok") {
@@ -121,8 +123,12 @@ produce el Informe de Riesgo, nunca tú.`,
         : p.valores,
     }));
 
+    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+
+
     return {
       paraElModelo: {
+        ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
         nif,
         ejerciciosDisponibles: ejercicios,
         moneda: "EUR",

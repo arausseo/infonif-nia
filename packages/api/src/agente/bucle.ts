@@ -28,6 +28,8 @@ export interface OpcionesTurno {
   historial: Anthropic.MessageParam[];
   derechos: Derechos;
   contextoPagina?: ContextoPagina;
+  /** Para el permiso de gasto: se concede por conversación, no por turno. */
+  conversacionId?: string;
   senal: AbortSignal;
   emitir(evento: EventoSSE): void;
 }
@@ -71,7 +73,7 @@ function sistema(
 
 /** Un turno completo: puede dar varias vueltas si el modelo encadena herramientas. */
 export async function ejecutarTurno(opciones: OpcionesTurno): Promise<ResultadoTurno> {
-  const { mensaje, derechos, contextoPagina, senal, emitir } = opciones;
+  const { mensaje, derechos, contextoPagina, conversacionId, senal, emitir } = opciones;
 
   const mensajes: Anthropic.MessageParam[] = [
     ...opciones.historial,
@@ -151,6 +153,7 @@ export async function ejecutarTurno(opciones: OpcionesTurno): Promise<ResultadoT
         ejecutarHerramienta(uso, {
           derechos,
           ...(contextoPagina ? { contextoPagina } : {}),
+          ...(conversacionId ? { conversacionId } : {}),
           senal,
           emitir,
           idPaso: pasosDeLaVuelta.get(indiceDelBloque(respuesta.content, uso)) ?? `s${i}`,
@@ -190,6 +193,7 @@ function indiceDelBloque(
 interface ContextoEjecucion {
   derechos: Derechos;
   contextoPagina?: ContextoPagina;
+  conversacionId?: string;
   senal: AbortSignal;
   emitir(evento: EventoSSE): void;
   idPaso: string;
@@ -248,6 +252,7 @@ async function ejecutarHerramienta(
   const contexto: ContextoTool = {
     derechos: ctx.derechos,
     ...(ctx.contextoPagina ? { contextoPagina: ctx.contextoPagina } : {}),
+    ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     senal: ctx.senal,
     // Fuente B del protocolo: subpasos desde dentro del ejecutor. Actualizan el
     // MISMO paso en sitio, no crean renglones nuevos.

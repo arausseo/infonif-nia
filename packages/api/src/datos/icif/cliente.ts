@@ -46,6 +46,11 @@ export type ResultadoIcif<T> =
    * la web, y quien valida la compra es el servicio de aguas arriba.
    */
   | { estado: "noAutorizado"; origenClave: OrigenClave }
+  /**
+   * El usuario todavía no ha dado permiso para gastar sus créditos en esta
+   * empresa. No es un fallo: es que aún no se le ha preguntado, o dijo que no.
+   */
+  | { estado: "requiereAutorizacion"; nif: string }
   | { estado: "sinClave" };
 
 interface Opciones {

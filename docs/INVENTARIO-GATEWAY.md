@@ -187,6 +187,68 @@ afirmativa sin contenido y ahí es justo donde rellena el hueco por su cuenta.
 El cliente trata ahora como «sin datos» la cadena vacía, el objeto sin claves y
 la lista sin elementos.
 
+## El usuario autoriza antes de que se gaste su saldo
+
+**La puerta está en el código, no en el prompt.** Es la regla de siempre: si esto
+viviera solo en las instrucciones, bastaría un despiste del modelo —o alguien
+insistiéndole— para empezar a gastar saldo ajeno. En `dato.ts`, ninguna llamada
+sale sin permiso registrado.
+
+### Se autoriza una empresa, no una consulta
+
+Porque el coste es por NIF y por mes. Abrir una empresa cuesta 1 crédito y con él
+quedan cubiertos sus cargos, su balance, su BORME y su grupo durante el mes
+entero. Pedir permiso por herramienta sería preguntar cuatro veces para cobrar
+una vez.
+
+Al pedirlo, se le dice eso mismo: no está pagando una consulta, está abriendo una
+ficha.
+
+### Los tres alcances
+
+| Alcance | Qué hace |
+|---|---|
+| `empresa` | dijo que sí a un NIF concreto. El caso normal. |
+| `sesion` | «adelante y no me preguntes más», mientras dure la conversación. |
+| `revocar` | vuelve a preguntar cada vez. Un permiso irrevocable no es un permiso. |
+
+El permiso **vive en la conversación y muere con ella**. No se guarda un «este
+usuario siempre dice que sí» entre sesiones: eso ya no sería permiso, sería
+suposición.
+
+### Falla del lado seguro
+
+Si Redis no responde, se **deniega**. Si no hay identificador de conversación, se
+deniega. Nunca al revés: el fallo por defecto es preguntar, no gastar.
+
+Hay un fallo que conviene recordar porque lo cazó un test y no el compilador. El
+estado por defecto era una constante, y esparcirla copiaba el objeto pero **no el
+array de NIF**, que quedaba compartido por referencia. Autorizar una empresa lo
+mutaba y a partir de ahí todas las conversaciones nacían con ese NIF ya
+autorizado: el permiso de un usuario abría la puerta a los demás. Compilaba, no
+lanzaba nada y el caso normal funcionaba.
+
+### Contarle lo que gasta
+
+Cada consulta devuelve cuánto ha costado y cuánto queda. Se puede silenciar
+—`autorizar_consultas` con `informar: false`— porque quien abre veinte empresas
+seguidas no quiere veinte recordatorios, y repetirlo tapa la respuesta.
+
+**Cuánto ha costado no lo dice el gateway.** Cobra la primera vez que se abre una
+empresa en el mes y nada las siguientes, pero responde igual en los dos casos.
+Así que se resta contra el último saldo conocido, que se guarda con la
+autorización. La primera consulta de una conversación no tiene con qué comparar y
+solo informa del disponible; a partir de ahí el gasto es exacto:
+
+> Te quedan 2.857.091 créditos.
+>
+> Esta empresa ya estaba consultada este mes, no has gastado nada.
+
+Preguntar el saldo no gasta saldo: `consultar-creditos` no pasa por el control de
+créditos. Si costara, esto no se haría.
+
+---
+
 ## La clave genérica es una muleta del demo
 
 Ahora mismo Nia usa `ICIF_APIKEY_GENERICA` porque el ASP **todavía no manda la

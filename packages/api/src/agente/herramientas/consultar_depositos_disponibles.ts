@@ -2,6 +2,7 @@ import { z } from "zod";
 import { obtenerDepositosDisponibles } from "../../datos/icif/dato.js";
 import { definirTool } from "../tipos.js";
 import { sinDato } from "./_icif.js";
+import { saldoTrasConsultar } from "./_saldo.js";
 
 export default definirTool({
   nombre: "consultar_depositos_disponibles",
@@ -26,13 +27,18 @@ haya depositado o dejado de depositar no es una valoración.`,
   async ejecutar({ nif }, ctx) {
     const resultado = await obtenerDepositosDisponibles(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
+      ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     });
     if (resultado.estado !== "ok") return sinDato(resultado, "ninguna cuenta depositada", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { ejercicios, depositos } = resultado.datos;
 
+    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+
+
     return {
       paraElModelo: {
+        ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
         nif,
         ejercicios,
         depositos: depositos.map((d) => ({

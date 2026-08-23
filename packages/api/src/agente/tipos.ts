@@ -45,6 +45,14 @@ export interface ContextoTool {
   derechos: Derechos;
   contextoPagina?: ContextoPagina;
   /**
+   * En qué conversación estamos.
+   *
+   * Hace falta para el permiso de gasto de créditos: se concede por
+   * conversación y muere con ella. Sin esto, el ejecutor no sabría a quién le
+   * dijo que sí el usuario.
+   */
+  conversacionId?: string;
+  /**
    * Subpasos dentro del ejecutor (CONTRATOS §1, fuente B). Aquí está la riqueza
    * real del protocolo de progreso: `construir_segmento` reporta cinco.
    */

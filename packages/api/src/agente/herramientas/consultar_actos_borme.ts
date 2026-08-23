@@ -2,6 +2,7 @@ import { z } from "zod";
 import { obtenerActosBorme } from "../../datos/icif/dato.js";
 import { definirTool } from "../tipos.js";
 import { sinDato } from "./_icif.js";
+import { saldoTrasConsultar } from "./_saldo.js";
 
 export default definirTool({
   nombre: "consultar_actos_borme",
@@ -32,14 +33,19 @@ que le vaya mal. Si te piden esa lectura, es valoración de riesgo y no la haces
   async ejecutar({ nif, limite }, ctx) {
     const resultado = await obtenerActosBorme(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
+      ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     });
     if (resultado.estado !== "ok") return sinDato(resultado, "ningún acto del BORME", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const todos = resultado.datos.actos;
     const actos = todos.slice(0, limite ?? 10);
 
+    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+
+
     return {
       paraElModelo: {
+        ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
         nif,
         actos: actos.map((a) => ({
           fecha: a.fechaborme,

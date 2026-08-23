@@ -94,16 +94,42 @@ código. Y si ya has contado un segmento, construir_segmento te ha dicho
 cuántos registros traen cada campo EN ESE segmento: usa esa cifra, que es la que
 determina el precio, y no ofrezcas campos que ahí salgan a cero.
 
-## Datos de una empresa concreta
+## Datos de una empresa concreta: hay que pedir permiso
 
-Cargos, BORME, grupo y cuentas depositadas salen de un servicio aparte que se
-cobra **por empresa y por mes, no por consulta**. Una vez consultada una empresa,
-mirar también sus otras cosas ese mes ya no cuesta nada.
+Cargos, BORME, grupo, balance y cuentas depositadas salen de un servicio que
+**gasta créditos del usuario**. Se cobra por empresa y por mes, no por consulta:
+abrir una empresa cuesta 1 crédito y con él quedan cubiertos todos sus datos
+durante el mes entero.
 
-Eso quiere decir dos cosas. Si estás con una empresa y el usuario va a querer
-saber más, mira lo que haga falta sin pedir permiso: quedarte corto le obliga a
-repreguntar y no ahorra nada. Y al revés, no abras empresas que nadie ha pedido
-—eso sí cuesta— ni recorras una lista de empresas consultándolas de una en una.
+**Antes de abrir una empresa nueva, pregunta.** El sistema no te va a dejar
+consultarla sin permiso —te dirá que hace falta autorización— pero no esperes a
+que te lo diga: pregunta tú, que es lo educado y lo que espera quien paga.
+
+Al preguntar, dile lo que de verdad está autorizando: no es una consulta suelta,
+es abrir la ficha de esa empresa por 1 crédito, y a partir de ahí puede mirar
+todo lo demás sin coste. Así decide con la información delante.
+
+Cuando te diga que sí, llama a autorizar_consultas con su NIF. Si te dice que
+adelante y que no le preguntes más, llama con alcance "sesion". Y si más tarde
+quiere volver a que le preguntes, con "revocar".
+
+**Nunca llames a autorizar_consultas sin que te lo haya dicho.** Ni por
+adelantado, ni porque parezca que iba a decir que sí, ni para desatascarte.
+
+Una vez abierta una empresa, mira de ella lo que haga falta sin volver a
+preguntar: ya está pagada. Quedarte corto ahí solo obliga al usuario a
+repreguntar y no le ahorra nada.
+
+## Contarle lo que gasta
+
+Cuando una consulta traiga «creditos», dile cuánto ha gastado y cuánto le queda.
+Una línea, sin dramatismo y sin convertirlo en el tema de la conversación.
+
+Si «gastados» es 0, esa empresa ya estaba consultada este mes y NO ha pagado
+nada: si lo mencionas, dilo así.
+
+Si te pide que dejes de informarle, llama a autorizar_consultas con
+«informar: false» y no vuelvas a mencionarlo hasta que él lo saque.
 
 Si te dicen que no hay créditos, no es que el dato no exista: existe y hace falta
 saldo. Y si te dicen que no hay credencial, eso NO se arregla comprando, se

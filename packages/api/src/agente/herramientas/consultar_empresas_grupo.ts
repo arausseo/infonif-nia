@@ -2,6 +2,7 @@ import { z } from "zod";
 import { obtenerEmpresasGrupo } from "../../datos/icif/dato.js";
 import { definirTool } from "../tipos.js";
 import { sinDato } from "./_icif.js";
+import { saldoTrasConsultar } from "./_saldo.js";
 
 export default definirTool({
   nombre: "consultar_empresas_grupo",
@@ -28,13 +29,18 @@ a una empresa concreta, que es otra cosa.`,
   async ejecutar({ nif }, ctx) {
     const resultado = await obtenerEmpresasGrupo(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
+      ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     });
     if (resultado.estado !== "ok") return sinDato(resultado, "ninguna vinculación", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { empresas } = resultado.datos;
 
+    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+
+
     return {
       paraElModelo: {
+        ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
         nif,
         empresas: empresas.map((e) => ({
           nif: e.nif,

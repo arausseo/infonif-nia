@@ -92,6 +92,7 @@ export function registrarConversar(app: Servidor): void {
       ]);
 
       const resultado = await ejecutarTurno({
+        conversacionId: conversationId,
         mensaje,
         historial,
         derechos,

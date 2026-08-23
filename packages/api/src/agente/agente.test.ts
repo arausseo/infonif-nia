@@ -18,6 +18,7 @@ import { DERECHOS_ANONIMO, interpretarPlan } from "../datos/derechos.js";
 describe("registro de herramientas", () => {
   it("están todas las de lectura del catálogo, y solo esas", () => {
     expect(HERRAMIENTAS.map((h) => h.nombre).sort()).toEqual([
+      "autorizar_consultas",
       "buscar_empresa",
       "comparar_empresas",
       "construir_segmento",

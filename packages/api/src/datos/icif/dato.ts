@@ -1,3 +1,4 @@
+import { estaAutorizado } from "./autorizacion.js";
 import { icif, type ResultadoIcif } from "./cliente.js";
 import {
   ActoBorme,
@@ -61,10 +62,10 @@ export interface Cargos {
 export async function obtenerCargos(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<Cargos>> {
   const cuerpo = { nif, estado: ESTADO_VIGENTES };
-  const bruto = await llamar("/dato/obtener-cargos", usuarioId, cuerpo, opciones.senal);
+  const bruto = await llamar("/dato/obtener-cargos", usuarioId, cuerpo, opciones.senal, opciones.conversacionId);
   if (bruto.estado !== "ok") return bruto;
 
   const analizado = RespuestaCargos.safeParse(bruto.datos);
@@ -87,13 +88,14 @@ export interface ActosBorme {
 export async function obtenerActosBorme(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<ActosBorme>> {
   const bruto = await llamar(
     "/dato/obtener-actos-borme",
     usuarioId,
     { nif },
     opciones.senal,
+    opciones.conversacionId,
   );
   if (bruto.estado !== "ok") return bruto;
 
@@ -116,13 +118,14 @@ export interface EmpresasGrupo {
 export async function obtenerEmpresasGrupo(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<EmpresasGrupo>> {
   const bruto = await llamar(
     "/dato/obtener-empresas-grupo",
     usuarioId,
     { nif },
     opciones.senal,
+    opciones.conversacionId,
   );
   if (bruto.estado !== "ok") return bruto;
 
@@ -147,13 +150,14 @@ export interface DepositosDisponibles {
 export async function obtenerDepositosDisponibles(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<DepositosDisponibles>> {
   const bruto = await llamar(
     "/dato/obtener-depositos-disponibles",
     usuarioId,
     { nif },
     opciones.senal,
+    opciones.conversacionId,
   );
   if (bruto.estado !== "ok") return bruto;
 
@@ -207,13 +211,14 @@ export interface Perfil {
 export async function obtenerPerfilEmpresa(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<Perfil>> {
   const bruto = await llamar(
     "/dato/obtener-perfil-empresa",
     usuarioId,
     { nif },
     opciones.senal,
+    opciones.conversacionId,
   );
   if (bruto.estado !== "ok") return bruto;
 
@@ -246,13 +251,32 @@ export async function obtenerPerfilEmpresa(
   return { estado: "ok", datos: perfil, origenClave: bruto.origenClave };
 }
 
-/** El NIF es obligatorio en todas: su API devuelve 400 sin él. */
-function llamar(
+/**
+ * Toda llamada de esta familia pasa por aquí, y aquí está la puerta.
+ *
+ * **Sin permiso del usuario para esa empresa, la petición no se hace.** No se
+ * hace y se descarta el resultado: no se hace. Es la diferencia entre un control
+ * y un adorno.
+ *
+ * El permiso es por NIF porque el coste es por NIF: una vez dicho que sí a una
+ * empresa, mirar sus cargos, su balance y su BORME ya no cuesta nada más, y
+ * volver a preguntar sería pedir cuatro veces lo mismo para cobrar una.
+ *
+ * Ojo con el orden: la autorización se comprueba **antes** que la clave. Si no
+ * hay permiso da igual que haya credencial, y preguntar primero por la
+ * credencial delataría si el usuario tiene o no cuenta sin que él haya
+ * autorizado nada.
+ */
+async function llamar(
   ruta: string,
   usuarioId: number | undefined,
   cuerpo: { nif: string } & Record<string, unknown>,
   senal: AbortSignal | undefined,
+  conversacionId?: string,
 ): Promise<ResultadoIcif<unknown>> {
+  if (!(await estaAutorizado(conversacionId, cuerpo.nif))) {
+    return { estado: "requiereAutorizacion", nif: cuerpo.nif };
+  }
   return icif(ruta, usuarioId, senal ? { cuerpo, senal } : { cuerpo });
 }
 
@@ -286,13 +310,14 @@ export interface Balance {
 export async function obtenerBalanceResumido(
   nif: string,
   usuarioId: number | undefined,
-  opciones: { senal?: AbortSignal } = {},
+  opciones: { senal?: AbortSignal; conversacionId?: string } = {},
 ): Promise<ResultadoIcif<Balance>> {
   const bruto = await llamar(
     "/dato/obtener-balance-resumido",
     usuarioId,
     { nif },
     opciones.senal,
+    opciones.conversacionId,
   );
   if (bruto.estado !== "ok") return bruto;
 

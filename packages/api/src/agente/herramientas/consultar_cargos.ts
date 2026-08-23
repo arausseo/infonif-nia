@@ -2,6 +2,7 @@ import { z } from "zod";
 import { obtenerCargos } from "../../datos/icif/dato.js";
 import { definirTool } from "../tipos.js";
 import { sinDato } from "./_icif.js";
+import { saldoTrasConsultar } from "./_saldo.js";
 
 export default definirTool({
   nombre: "consultar_cargos",
@@ -32,13 +33,18 @@ uses para varias empresas de un segmento: es de una en una.`,
   async ejecutar({ nif }, ctx) {
     const resultado = await obtenerCargos(nif, ctx.derechos.usuarioId, {
       senal: ctx.senal,
+      ...(ctx.conversacionId ? { conversacionId: ctx.conversacionId } : {}),
     });
     if (resultado.estado !== "ok") return sinDato(resultado, "los cargos", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
     const { cargos } = resultado.datos;
 
+    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+
+
     return {
       paraElModelo: {
+        ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
         nif,
         cargos: cargos.map((c) => ({
           nombre: c.nombre,

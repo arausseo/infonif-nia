@@ -37,6 +37,26 @@ export async function sinDato(
     };
   }
 
+  if (resultado.estado === "requiereAutorizacion") {
+    return {
+      paraElModelo: {
+        hayDatos: false,
+        motivo: "requiereAutorizacion",
+        nif: resultado.nif,
+        aviso:
+          `Todavía no tienes permiso para gastar los créditos de este usuario en la empresa ${resultado.nif}. ` +
+          "Pregúntale si quieres que la consultes: cuesta 1 crédito y con él quedan cubiertos todos sus datos —cargos, balance, BORME, grupo— durante todo el mes. " +
+          "Si dice que sí, llama a autorizar_consultas con ese NIF. Si además te dice que no le preguntes más, llama a autorizar_consultas con alcance 'sesion'. " +
+          "NO consultes nada de esa empresa hasta que te haya dicho que sí.",
+      },
+      paraLaUI: {
+        tipo: "confirmacion",
+        clave: `autorizar:${resultado.nif}`,
+        datos: { accion: "autorizar_creditos", nif: resultado.nif, coste: 1 },
+      },
+    };
+  }
+
   if (resultado.estado === "sinCreditos") {
     // Se pregunta el saldo exacto. `/credito/consultar-creditos` NO pasa por el
     // control de créditos —comprobado con una clave a cero, responde 200— así
