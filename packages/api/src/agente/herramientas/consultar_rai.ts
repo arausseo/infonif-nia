@@ -8,7 +8,8 @@ export default definirTool({
   descripcion: `El RAI de una empresa: si figura en el Registro de Aceptaciones Impagadas.
 
 Úsala cuando pregunten por impagados, por el RAI, o si una empresa tiene efectos
-devueltos. Necesita el NIF.
+devueltos. Necesita el NIF. NO la uses para concurso de acreedores: eso es
+consultar_situacion_concursal.
 
 Es un producto que el cliente compra en el portal. Si no lo tiene contratado, la
 herramienta lo dice y entonces se le explica qué incluye — no se le da el dato ni

@@ -30,6 +30,7 @@ describe("registro de herramientas", () => {
       "consultar_empresas_grupo",
       "consultar_rai",
       "consultar_saldo",
+      "consultar_situacion_concursal",
       "consultar_socios",
       "consultar_titularidad_real",
       "cotizar",

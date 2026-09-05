@@ -56,6 +56,24 @@ export async function solicitarRai(
   });
 }
 
+/**
+ * Situación concursal de una empresa. Cuerpo `{ nif }`.
+ *
+ * Es un hecho registral (si consta concurso u otro procedimiento), no una
+ * valoración de solvencia. No confundir con el RAI (impagados) ni con el
+ * Informe de Riesgo.
+ */
+export async function obtenerSituacionConcursal(
+  nif: string,
+  usuarioId: number | undefined,
+  opciones: { senal?: AbortSignal } = {},
+): Promise<ResultadoIcif<unknown>> {
+  return icif("/producto/obtener-situacion-concursal", usuarioId, {
+    cuerpo: { nif },
+    ...(opciones.senal ? { senal: opciones.senal } : {}),
+  });
+}
+
 /** Los dos únicos tipos que admite su API (`getTipoInforme`). */
 export const TipoInforme = z.enum(["6", "11"]);
 export type TipoInforme = z.infer<typeof TipoInforme>;
