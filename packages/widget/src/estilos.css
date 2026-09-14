@@ -341,6 +341,78 @@ button {
   font-size: 12.5px;
 }
 
+/*
+ * Tablas. El contenedor desplaza en horizontal y la tabla no: el cajón mide
+ * 400 px y una tabla de cuatro o cinco columnas no cabe. Sin el contenedor, la
+ * tabla ensanchaba el cajón entero y descuadraba el compositor.
+ */
+.nia-tabla {
+  margin: 0 0 12px;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--nia-borde);
+  border-radius: var(--nia-radio-menor);
+  -webkit-overflow-scrolling: touch;
+}
+
+.nia-tabla:focus-visible {
+  outline: 2px solid var(--nia-acento);
+  outline-offset: 1px;
+}
+
+.nia-tabla table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.nia-tabla th,
+.nia-tabla td {
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--nia-borde);
+}
+
+.nia-tabla th {
+  background: var(--nia-papel-suave);
+  color: var(--nia-tinta-suave);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/*
+ * `break-word` y no `anywhere`. La diferencia importa justo en tablas: con
+ * `anywhere` el ancho mínimo de la columna baja a un carácter, y en cuanto las
+ * cifras reclaman sitio el navegador estruja el texto hasta «negoci/o». Con
+ * `break-word` una palabra no se parte salvo que no quepa sola, así que la
+ * tabla crece y el contenedor desplaza, que es lo que tiene que pasar.
+ */
+.nia-tabla td {
+  overflow-wrap: break-word;
+}
+
+.nia-tabla td:not(.nia-cifra):not(.nia-compacto) {
+  min-width: 7em;
+}
+
+/* Cifras y fechas no se parten nunca en dos líneas. */
+.nia-tabla td.nia-cifra,
+.nia-tabla td.nia-compacto {
+  white-space: nowrap;
+}
+
+.nia-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.nia-tabla tbody tr:nth-child(even) td {
+  background: var(--nia-papel-suave);
+}
+
 .nia-error {
   margin: 8px 0 0;
   color: var(--nia-error);
