@@ -1,13 +1,13 @@
 # Instalación en el entorno de prueba del cliente
 
-Prueba de concepto: **Nia solo en `/bases-de-datos`**. No se toca ninguna otra
+Prueba de concepto: **Infonif.IA solo en `/bases-de-datos`**. No se toca ninguna otra
 sección del portal.
 
 Son dos piezas y van en dos máquinas distintas:
 
 | Pieza | Dónde | Qué es |
 |---|---|---|
-| API de Nia | servidor **Fedora** | Node 22, escucha en `:3000` |
+| API de Infonif.IA | servidor **Fedora** | Node 22, escucha en `:3000` |
 | Inclusión en el ASP | el IIS que ya existe | tres ficheros, ninguno nuevo en producción |
 
 El widget **no se instala**: lo sirve el propio API en `/widget.js`, así que
@@ -26,7 +26,7 @@ Sin esto no se puede arrancar. Conviene reclamarlo el primer día.
 - [ ] **Una máquina Linux** alcanzable desde el IIS, con salida a internet
       (habla con `api.anthropic.com` y con `bbdd-api.infonif.es`).
 - [ ] **Acceso al nginx** de `bbdd-api2.infonif.es`. **No hace falta DNS ni
-      certificado nuevos**: Nia cuelga de un prefijo de ese host, que ya tiene
+      certificado nuevos**: Infonif.IA cuelga de un prefijo de ese host, que ya tiene
       HTTPS (paso 5). Sí hace falta HTTPS: el portal va por HTTPS y un navegador
       no deja que una página segura hable con un origen que no lo sea.
 - [ ] **Quién toca el IIS.** Los cambios en el ASP son de tres ficheros, pero
@@ -98,7 +98,7 @@ silencio, así que habría contestado «connection refused» al instante. Un tie
 agotado es alguien tirando los paquetes sin contestar, y eso suele estar en la
 red, no en el servidor.
 
-Primero, descartar que sea el propio servicio. En la máquina de Nia, con la IP de
+Primero, descartar que sea el propio servicio. En la máquina de Infonif.IA, con la IP de
 red y no con `localhost`:
 
 ```bash
@@ -117,12 +117,12 @@ timeout 5 bash -c '</dev/tcp/192.168.210.31/9000' || echo "el .31 tampoco"
 
 Si el 22 del .33 tampoco responde, el puerto es irrelevante: hay un ACL entre
 segmentos. Suele pasar cuando la máquina del nginx solo tenía permiso para hablar
-con la del buscador y Nia va en otra distinta. Salidas, de mejor a peor: que
-abran ese camino; instalar Nia en la máquina que el nginx ya alcanza; o publicarla
+con la del buscador y Infonif.IA va en otra distinta. Salidas, de mejor a peor: que
+abran ese camino; instalar Infonif.IA en la máquina que el nginx ya alcanza; o publicarla
 por el IIS, que además deja el widget en el mismo origen que el portal y quita el
 CORS de en medio.
 
-Y la prueba que no admite discusión, en la máquina de Nia mientras se intenta
+Y la prueba que no admite discusión, en la máquina de Infonif.IA mientras se intenta
 conectar desde la otra:
 
 ```bash
@@ -142,14 +142,14 @@ getsebool httpd_can_network_connect
 sudo setsebool -P httpd_can_network_connect 1
 ```
 
-Sin eso, el `proxy_pass` a Nia da **502** y en el log de nginx aparece
+Sin eso, el `proxy_pass` a Infonif.IA da **502** y en el log de nginx aparece
 «Permission denied» — que parece un problema de red y no lo es.
 
 ---
 
 ## 1.3 Actualizar una instalación que ya funciona
 
-Si Nia ya está corriendo y solo hay que subir una versión nueva, esto es todo.
+Si Infonif.IA ya está corriendo y solo hay que subir una versión nueva, esto es todo.
 **No hace falta tocar Redis, ni Node, ni el nginx, ni el ASP.**
 
 ```bash
@@ -317,7 +317,7 @@ REDIS_URL=redis://localhost:6379
 # El secreto del puente. GENÉRALO, no lo escribas a mano:
 #   openssl rand -hex 32
 # Este mismo valor va en el IIS (paso 6). Si no coinciden, /internal/mint
-# devuelve 403 y Nia funciona en modo anónimo sin decir por qué.
+# devuelve 403 y Infonif.IA funciona en modo anónimo sin decir por qué.
 AGENT_SHARED_SECRET=<el que hayas generado>
 TOKEN_TTL_SEGUNDOS=900
 
@@ -371,7 +371,7 @@ Con la cadena rota sale un único ` 0 s:` y `Verify return code: 21`.
 completa (`fullchain`, no solo el certificado). Arregla a todos los clientes a la
 vez y conviene pedirlo.
 
-**Mientras tanto**, se le da a Nia el intermedio que falta —sin tocar en qué
+**Mientras tanto**, se le da a Infonif.IA el intermedio que falta —sin tocar en qué
 confía el resto del sistema:
 
 ```bash
@@ -404,7 +404,7 @@ Si se prueba a mano sin eso y se ve el mismo `fetch failed`, no es que el
 certificado esté mal: es que Node ni lo ha mirado.
 
 Se prefiere `NODE_EXTRA_CA_CERTS` a `update-ca-trust` porque queda acotado al
-proceso de Nia. **Lo que no se hace nunca es `NODE_TLS_REJECT_UNAUTHORIZED=0`**:
+proceso de Infonif.IA. **Lo que no se hace nunca es `NODE_TLS_REJECT_UNAUTHORIZED=0`**:
 apaga la verificación de TLS del proceso entero, y ese proceso también habla con
 `api.anthropic.com` llevando una clave de API.
 
@@ -420,7 +420,7 @@ de intermedio.
 
 ```ini
 [Unit]
-Description=Nia API
+Description=Infonif.IA API
 After=network-online.target redis.service
 Wants=network-online.target
 
@@ -466,11 +466,11 @@ llenarse tras el arranque: es normal que salga `"cargado": false` al principio.
 
 ---
 
-## 5. Nginx: Nia en el dominio que ya existe
+## 5. Nginx: Infonif.IA en el dominio que ya existe
 
 **No hay que dar de alta ningún DNS ni pedir certificado.** El bloque de 443 de
 `/etc/nginx/conf.d/bbdd-api2.infonif.es.conf` tiene `server_name _;`, o sea que
-ya atiende cualquier host que llegue con ese certificado. Nia cuelga de un
+ya atiende cualquier host que llegue con ese certificado. Infonif.IA cuelga de un
 prefijo de ruta, igual que `/api/buscador` y `/api/infocif`, y queda en:
 
 ```
@@ -560,7 +560,7 @@ curl -N -s -X POST https://bbdd-api2.infonif.es/nia/v1/conversar \
 Los eventos tienen que ir apareciendo poco a poco. Si salen todos juntos al
 final, falta el `proxy_buffering off`.
 
-### 5.4 Cuando Nia pase a producción
+### 5.4 Cuando Infonif.IA pase a producción
 
 Entonces sí merece su propio `server` con su nombre y su certificado, aunque solo
 sea para tener límites y logs separados. La forma sería la de siempre —un bloque
@@ -585,7 +585,7 @@ Application("NIA_AGENT_SHARED_SECRET") = "<el mismo del paso 3>"
 ```
 
 Tiene que ser **idéntico** al del `.env`. Si no coinciden, `/internal/mint`
-devuelve 403, el token no se acuña y Nia sale en modo anónimo — sin error
+devuelve 403, el token no se acuña y Infonif.IA sale en modo anónimo — sin error
 visible, que es lo traicionero.
 
 ### 6.2 Subir el include
@@ -621,11 +621,11 @@ Ya están modificadas en el repositorio:
 
 1. Entrar en `https://infonif.economia3.com/bases-de-datos/herramienta/`
    **con sesión iniciada**.
-2. Abajo a la derecha tiene que aparecer la píldora violeta **Nia · BETA**.
+2. Abajo a la derecha tiene que aparecer la píldora violeta **Infonif.IA · BETA**.
 3. Abrirla y escribir: *«Panaderías en Madrid»*.
 4. Tiene que verse: «Trabajando…» al instante, luego los pasos con sus
    resultados, luego la respuesta y una tarjeta con la cifra.
-5. En `/bases-de-datos/` (la portada de la sección) comprobar que Nia y el chat
+5. En `/bases-de-datos/` (la portada de la sección) comprobar que Infonif.IA y el chat
    de Zendesk **no se pisan**.
 
 En el servidor, mientras tanto:
@@ -663,12 +663,12 @@ dominio correcto pero con una barra final (`https://…com/`), y un navegador
 **nunca** manda esa barra en la cabecera `Origin` — es siempre
 `esquema://host[:puerto]`, sin ruta. La comparación es por igualdad exacta, así
 que esa barra bastaba para que no casara nunca, con cualquier dominio.
-| Nia no reconoce al usuario | `journalctl` sin línea `token acuñado` → el secreto no coincide, o el IIS no llega a `NIA_BASE_INTERNA`. Pruébalo desde el propio IIS. |
+| Infonif.IA no reconoce al usuario | `journalctl` sin línea `token acuñado` → el secreto no coincide, o el IIS no llega a `NIA_BASE_INTERNA`. Pruébalo desde el propio IIS. |
 | Los pasos salen todos de golpe al final | `proxy_buffering off` no está aplicado. Es el paso 5. |
 | «no se pudo refrescar el catálogo» | La máquina no llega a `infonif.economia3.com`. No es fatal: usa la copia del repositorio, pero los precios pueden estar viejos (ADR-011). |
 | El primer mensaje tarda 30 s | Normal solo tras arrancar, mientras se llena la caché del resumen. A partir de ahí es instantáneo. |
 | 502 en nginx, «Permission denied» en su log | SELinux en la máquina del nginx: `sudo setsebool -P httpd_can_network_connect 1`. Parece un problema de red y no lo es. |
-| El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Nia. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
+| El nginx o el IIS no alcanzan el :3000 | firewalld en la máquina de Infonif.IA. `sudo firewall-cmd --zone=nia --list-all` y comprueba que la IP de origen está en `sources`. |
 | `systemctl status` dice «Permission denied» al arrancar | Falta el `chown -R nia:nia /opt/nia` del paso 2, o `.env` sigue siendo de root. |
 | `telnet IP 3000` agota el tiempo pero `ping` va | Probablemente NO es firewalld: rechaza, no descarta. Ver 1.2. |
 | 502 en `/nia/salud` | nginx no alcanza el 3000: cortafuegos, o `httpd_can_network_connect` en off en la maquina del nginx. |
@@ -679,7 +679,7 @@ que esa barra bastaba para que no casara nunca, con cualquier dominio.
 | `corepack: command not found` | El RPM de Node de Fedora no lo trae. `sudo npm install -g pnpm@11`, o `sudo dnf install -y nodejs-corepack`. |
 | `sudo su nia` → «This account is currently not available» | Correcto y esperado: ese usuario tiene `nologin`. No hay que entrar como él. |
 | `Warning: Ignoring extra certs ... No such process` | La ruta de `NODE_EXTRA_CA_CERTS` es relativa. Tiene que ser absoluta: cada paquete corre con su propio directorio. Node solo avisa y sigue SIN el certificado. |
-| En el log: «no se pudo cargar el modelo semántico» | No es fatal. O se instaló con `--no-optional`, o la máquina no llega a `huggingface.co`. Nia sigue con los términos curados (ver 2.2). |
+| En el log: «no se pudo cargar el modelo semántico» | No es fatal. O se instaló con `--no-optional`, o la máquina no llega a `huggingface.co`. Infonif.IA sigue con los términos curados (ver 2.2). |
 
 ---
 
@@ -687,7 +687,7 @@ que esa barra bastaba para que no casara nunca, con cualquier dominio.
 
 Conviene decirlo antes de la demo, no durante:
 
-- **No se compra nada.** `crear_intento_compra` es la fase 5. Nia cotiza y
+- **No se compra nada.** `crear_intento_compra` es la fase 5. Infonif.IA cotiza y
   explica, pero no hay pasarela.
 - **No lee la ficha de empresa.** Esa integración usa un objeto COM y una bandera
   de sesión del ASP; requiere un endpoint nuevo del lado de Infonif.

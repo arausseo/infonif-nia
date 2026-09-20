@@ -8,6 +8,7 @@ import { useAltoAutomatico } from "./ganchos/useAltoAutomatico.js";
 import { useAutoscroll } from "./ganchos/useAutoscroll.js";
 import { useConversacion } from "./ganchos/useConversacion.js";
 import { useThrottle } from "./ganchos/useThrottle.js";
+import { NOMBRE } from "./marca.js";
 import { configuracionActual } from "./montar.js";
 import type { Turno } from "./tipos.js";
 
@@ -64,11 +65,11 @@ export function Widget() {
       {abierto && (
         <section
           className={`nia-cajon ${pantallaCompleta ? "nia-cajon--completo" : ""}`}
-          aria-label="Nia, asistente de Infonif"
+          aria-label={`${NOMBRE}, asistente de Infonif`}
         >
           <header className="nia-cajon__cabecera">
             <span className="nia-cajon__titulo">
-              Nia <span className="nia-insignia">BETA</span>
+              {NOMBRE} <span className="nia-insignia">BETA</span>
             </span>
             <div className="nia-cajon__acciones">
               {turnos.length > 0 && (

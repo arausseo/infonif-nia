@@ -1,3 +1,5 @@
+import { NOMBRE } from "../marca.js";
+
 /**
  * El lanzador (ADR-010).
  *
@@ -49,10 +51,10 @@ export function Lanzador({
       className="nia-lanzador"
       onClick={onClick}
       aria-expanded={abierto}
-      aria-label={abierto ? "Cerrar Nia" : "Abrir Nia, asistente de Infonif"}
+      aria-label={abierto ? `Cerrar ${NOMBRE}` : `Abrir ${NOMBRE}, asistente de Infonif`}
     >
       <IconoNia estado={estado} />
-      <span className="nia-lanzador__nombre">Nia</span>
+      <span className="nia-lanzador__nombre">{NOMBRE}</span>
       <span className="nia-insignia">BETA</span>
     </button>
   );

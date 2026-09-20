@@ -1,4 +1,4 @@
-# Nia
+# Infonif.IA
 
 Agente conversacional para `infonif.economia3.com`. Sidecar: se despliega al lado
 del portal ASP Classic y se embebe con una etiqueta `<script>`.

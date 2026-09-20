@@ -152,12 +152,29 @@ OAuth en lugar de secreto compartido.
 
 ---
 
-## ADR-010 · Marca: Nia
+## ADR-010 · Marca: Infonif.IA
 
-**Decisión.** Nombre corto derivado de la marca: la N de NIF más IA. Badge BETA
-visible. Icono: la N construida con tres barras ascendentes que forman también un
-gráfico de crecimiento, con cuatro estados animados (reposo, sugerencia,
-analizando, respondiendo).
+**Decisión.** El agente se llama **Infonif.IA**. Badge BETA visible. Icono: tres
+barras ascendentes que forman a la vez una N y un gráfico de crecimiento, con
+cuatro estados animados (reposo, sugerencia, analizando, respondiendo).
+
+**Se llamó «Nia» hasta septiembre de 2026**, por la N de NIF más IA. Infonif
+pidió cambiarlo para que el nombre lleve la marca delante. El razonamiento de
+origen sigue en pie —el nuevo nombre también termina en IA— pero ahora la marca
+es lo primero que se lee.
+
+**El cambio es solo del nombre visible.** Los identificadores internos siguen
+diciendo `nia`: el prefijo `nia-` de las clases CSS, los paquetes `@nia/*`,
+`window.__INFONIF_AGENT__`, `/opt/nia`, la ruta `/nia/` del nginx y el servicio
+de systemd. Renombrarlos obligaría a tocar nginx, systemd y el ASP a la vez, con
+parada de servicio, para que el usuario no notara ninguna diferencia. El nombre
+comercial y el identificador técnico son cosas distintas y se dejan cambiar por
+separado. El nombre visible vive en `packages/widget/src/marca.ts`.
+
+**Pendiente de decidir sobre el icono.** La N tenía sentido cuando el nombre
+empezaba por N. Sigue funcionando como logotipo —es también el gráfico de
+crecimiento— pero ya no es la inicial de nada. Si se quiere otra cosa, es un
+cambio de SVG en `Lanzador.tsx` y nada más.
 
 **Restricción de color.** El acento de IA **no puede ser verde ni rojo**: en
 Infonif esos colores ya significan solvente y riesgo. Usar un color que hoy no

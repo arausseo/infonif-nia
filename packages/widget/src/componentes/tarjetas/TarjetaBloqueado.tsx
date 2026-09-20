@@ -1,3 +1,5 @@
+import { NOMBRE } from "../../marca.js";
+
 /**
  * Lo que se enseña cuando el usuario no tiene derecho al dato.
  *
@@ -28,7 +30,7 @@ export function TarjetaBloqueado({ datos }: { datos: Record<string, unknown> }) 
       {motivo && <p className="nia-tarjeta__cuerpo">{motivo}</p>}
 
       <p className="nia-tarjeta__nota">
-        Nia no cobra: prepara la compra y la confirmas tú.
+        {NOMBRE} no cobra: prepara la compra y la confirmas tú.
       </p>
     </article>
   );

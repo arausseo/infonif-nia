@@ -195,7 +195,7 @@ window.__INFONIF_AGENT__ = {
 <script src="https://nia.infonif.es/widget.js" async></script>
 ```
 
-> Las URLs de arriba son ilustrativas. En el entorno de prueba del cliente Nia no
+> Las URLs de arriba son ilustrativas. En el entorno de prueba del cliente Infonif.IA no
 > tiene dominio propio: cuelga de `https://bbdd-api2.infonif.es/nia/`. Los valores
 > reales están en [INSTALACION-PRUEBA.md](INSTALACION-PRUEBA.md) §5.
 

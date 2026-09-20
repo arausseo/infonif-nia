@@ -1,4 +1,4 @@
-# Nia — Agente conversacional para Infonif
+# Infonif.IA — Agente conversacional para Infonif
 
 ## Qué es esto
 

@@ -1,4 +1,4 @@
-# Nia — descripción técnica de la solución
+# Infonif.IA — descripción técnica de la solución
 
 Qué es, cómo está montada y por qué cada pieza está donde está. Para alguien
 técnico que no ha visto el código.
@@ -13,7 +13,7 @@ filtros, entender qué campos hay y calcular qué va a costar. El formulario es
 correcto; el problema es que **el usuario no piensa en CNAE, piensa en
 «panaderías»**.
 
-Nia hace esa traducción. El usuario describe lo que busca en su idioma y ella
+Infonif.IA hace esa traducción. El usuario describe lo que busca en su idioma y ella
 resuelve los códigos, cuenta el segmento contra los datos reales y da el precio
 exacto — todo dentro de una conversación.
 
@@ -33,7 +33,7 @@ Un *sidecar*. Nada de lo existente se modifica salvo tres líneas de ASP para
 incluir el script.
 
 ```
-Navegador                     Servidor Nia (Node 22)        Infonif
+Navegador                     Servidor Infonif.IA (Node 22)        Infonif
 ─────────                     ──────────────────────        ───────
 widget (Shadow DOM) ─HTTPS─►  API Fastify
                                 │
@@ -230,7 +230,7 @@ usuario.
 
 El widget nunca ve credenciales. El prefijo `/internal/` no se publica hacia
 fuera: se bloquea explícitamente en el nginx, porque el host por el que se publica
-Nia es público. CORS restringido al origen del portal.
+Infonif.IA es público. CORS restringido al origen del portal.
 
 ---
 
@@ -271,12 +271,12 @@ ahí. Todo lo que sigue está comprobado contra el API real, no leído del códi
 Seis endpoints: consultar créditos, agregar créditos, historial, consumo del mes,
 saldo por producto y generación del 460.
 
-Esto es, literalmente, **la fase 5 de Nia**. Hoy el abono de créditos es un
+Esto es, literalmente, **la fase 5 de Infonif.IA**. Hoy el abono de créditos es un
 apaño: la conversación sabe cotizar y sabe preparar una compra, pero quien
 descuenta el saldo es un módulo de mentira. Aquí está el de verdad, con su
 historial y su contabilidad.
 
-Integrarlo convierte a Nia de «sabe cuánto cuesta» en «lo ha comprado», que es
+Integrarlo convierte a Infonif.IA de «sabe cuánto cuesta» en «lo ha comprado», que es
 donde está el valor. Y no habría que inventar el modelo de cobro: es el mismo que
 ya usa el portal, con las mismas reglas y los mismos límites.
 
@@ -285,7 +285,7 @@ ya usa el portal, con las mismas reglas y los mismos límites.
 Siete endpoints: razón social por NIF, perfil de empresa, actos del BORME,
 cargos, balance resumido, empresas del grupo y depósitos disponibles.
 
-Nia hoy cuenta segmentos y cotiza listados. Con esto respondería a preguntas que
+Infonif.IA hoy cuenta segmentos y cotiza listados. Con esto respondería a preguntas que
 ahora no puede tocar:
 
 - «¿Quién administra esta empresa?» → cargos
@@ -302,10 +302,10 @@ Diecisiete endpoints: solicitar y obtener RAI, informes, depósitos en PDF,
 titularidad real, partidas del depósito y el bloque RETIR (socios, depósitos,
 declaración de titularidad real).
 
-Con esta familia el ciclo se cierra dentro del chat: el usuario pregunta, Nia
+Con esta familia el ciclo se cierra dentro del chat: el usuario pregunta, Infonif.IA
 recomienda el producto, lo compra y **lo entrega**, sin mandarlo a otra pantalla.
 
-Ojo con un matiz que ya está en las reglas del proyecto: que Nia pueda entregar
+Ojo con un matiz que ya está en las reglas del proyecto: que Infonif.IA pueda entregar
 un Informe de Riesgo no significa que pueda opinar sobre el riesgo. El informe lo
 produce el sistema; la valoración sigue sin ser criterio del modelo.
 
@@ -347,7 +347,7 @@ Se estableció probando, que es la única forma:
 | las dos | `403 No tiene créditos` |
 
 El matiz está en el 403: significa que la petición **pasó la autenticación** y
-llegó al control de saldo. `/buscador` es al revés — quiere la de AWS. Nia manda
+llegó al control de saldo. `/buscador` es al revés — quiere la de AWS. Infonif.IA manda
 las dos.
 
 **Identidad: la clave del usuario NO viaja en el token.** El ASP la manda en
@@ -374,7 +374,7 @@ una dependencia de credencial donde hoy no hay ninguna.
 
 ### Lo que sigue abierto
 
-**Entorno.** El gateway está en AWS; Nia, en la red interna del cliente. Falta
+**Entorno.** El gateway está en AWS; Infonif.IA, en la red interna del cliente. Falta
 comprobar salida y latencia desde la máquina de producción, que no es lo mismo
 llamar a un servicio de la LAN que a uno en la nube.
 
@@ -398,7 +398,7 @@ para exponer estas APIs como servidor **MCP**, de modo que asistentes de tercero
 —Claude Desktop, Cursor, Copilot, agentes propios de clientes— consulten la
 información mercantil de Infonif como herramientas.
 
-Conviene señalar que **eso y Nia no compiten: se complementan**, y que la
+Conviene señalar que **eso y Infonif.IA no compiten: se complementan**, y que la
 decisión de arquitectura de este proyecto ya lo anticipó. La ADR-009 descartó MCP
 como protocolo *interno* —entre `agente/` y `datos/` no aporta nada, son el mismo
 equipo y el mismo despliegue— pero dejó apuntado el MCP **público** como
@@ -406,13 +406,13 @@ oportunidad de fase 2.
 
 Son dos caras de la misma capa de datos:
 
-| | Nia | MCP |
+| | Infonif.IA | MCP |
 |---|---|---|
 | Quién lo usa | el cliente final, en el portal | otro agente, en su herramienta |
 | Qué aporta | conversación guiada y venta | acceso programático estándar |
 | Monetización | créditos y euros, la de siempre | consumo medido por clave |
 
-Lo que se construya en `datos/` para Nia sirve a los dos. Y al revés: cada
+Lo que se construya en `datos/` para Infonif.IA sirve a los dos. Y al revés: cada
 endpoint que se integre acerca las dos cosas a la vez.
 
 ---
