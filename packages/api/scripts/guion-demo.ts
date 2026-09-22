@@ -77,6 +77,38 @@ const GUION: { flujo: string; turnos: Turno[] }[] = [
     ],
   },
   {
+    // Reportado desde la prueba con usuarios reales: al pedir el telefono o la
+    // web de una empresa, el asistente contestaba que habia que comprar un
+    // Informe Comercial. Era falso y ademas caro para el usuario.
+    //
+    // La causa: los datos de contacto estaban detras de la misma puerta que las
+    // cifras financieras, y la unica herramienta que los traia exigia plan. El
+    // perfil de ICIF -que si los da- estaba implementado y sin exponer.
+    flujo: "E — Contacto de una empresa",
+    turnos: [
+      {
+        titulo: "el telefono no es un producto",
+        mensaje: "¿Cuál es el teléfono y la web de MERCADONA SA?",
+        prohibido: [
+          /[Ii]nforme [Cc]omercial/,
+          /tienes que comprar/i,
+          /necesitas (comprar|adquirir)/i,
+          /requiere (la )?compra/i,
+          /15\s*€/,
+        ],
+        // Lo que importa aqui: que NO mande a comprar un informe. Pedir
+        // autorizacion para gastar 1 credito si es correcto, y es lo que hace.
+        esperado: [/cr[eé]dito/i],
+      },
+      {
+        titulo: "autorizado, da el dato",
+        mensaje: "Sí, adelante",
+        prohibido: [/[Ii]nforme [Cc]omercial/, /tienes que comprar/i],
+        esperado: [/mercadona\.es|800\s?500\s?220/i],
+      },
+    ],
+  },
+  {
     // Este flujo no estaba en el guion original: se añadió porque falló en una
     // prueba real. El modelo dijo que el EBITDA no era un campo y se inventó
     // qué significaban los códigos —colocó el 99022 como «Resultado del

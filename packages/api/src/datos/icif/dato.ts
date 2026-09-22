@@ -217,6 +217,13 @@ export interface Perfil {
   objetoSocial?: string;
   fechaConstitucion?: string;
   empleados?: string;
+  /**
+   * Teléfono, email y web.
+   *
+   * El teléfono estaba en la respuesta del API y no se copiaba aquí, así que no
+   * llegaba a ninguna parte. Es justo uno de los datos que más se preguntan.
+   */
+  telefono?: string;
   web?: string;
   email?: string;
   registroMercantil?: string;
@@ -259,6 +266,7 @@ export async function obtenerPerfilEmpresa(
   pon("objetoSocial", e?.objetosocial);
   pon("fechaConstitucion", e?.fechaconstitucion);
   pon("empleados", e?.empleados);
+  pon("telefono", e?.telefono);
   pon("web", e?.web);
   pon("email", e?.email);
   pon("registroMercantil", e?.registromercantil);

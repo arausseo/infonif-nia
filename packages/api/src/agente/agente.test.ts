@@ -28,6 +28,7 @@ describe("registro de herramientas", () => {
       "consultar_creditos",
       "consultar_depositos_disponibles",
       "consultar_empresas_grupo",
+      "consultar_perfil",
       "consultar_rai",
       "consultar_saldo",
       "consultar_situacion_concursal",

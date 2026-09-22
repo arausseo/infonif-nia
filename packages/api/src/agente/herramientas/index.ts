@@ -8,6 +8,7 @@ import autorizarConsultas from "./autorizar_consultas.js";
 import consultarActosBorme from "./consultar_actos_borme.js";
 import consultarBalance from "./consultar_balance.js";
 import consultarCargos from "./consultar_cargos.js";
+import consultarPerfil from "./consultar_perfil.js";
 import consultarCreditos from "./consultar_creditos.js";
 import consultarDepositosDisponibles from "./consultar_depositos_disponibles.js";
 import consultarEmpresasGrupo from "./consultar_empresas_grupo.js";
@@ -40,6 +41,7 @@ export const HERRAMIENTAS: readonly Herramienta[] = [
   // credencial, comparten coste (1 crédito por NIF y mes) y comparten la forma
   // de fallar. Lo que las une no es el tema, es de dónde salen.
   autorizarConsultas,
+  consultarPerfil,
   consultarCargos,
   consultarBalance,
   consultarActosBorme,
