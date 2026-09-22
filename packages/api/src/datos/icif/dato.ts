@@ -145,6 +145,14 @@ export interface DepositosDisponibles {
   depositos: Deposito[];
   /** Los ejercicios, ordenados de más reciente a más antiguo. */
   ejercicios: string[];
+  /**
+   * Ejercicios que constan en el Registro pero Infonif **aún no ha procesado**.
+   *
+   * Importa para no prometer de más: de un depósito sin procesar se sabe que
+   * existe, pero no se pueden dar sus partidas. Sin distinguirlo, el agente
+   * ofrece unas cuentas que luego no llegan.
+   */
+  sinProcesar: string[];
 }
 
 export async function obtenerDepositosDisponibles(
@@ -178,9 +186,19 @@ export async function obtenerDepositosDisponibles(
     ),
   ].sort((a, b) => b.localeCompare(a));
 
+  // El campo se llama `procesadas` en la respuesta real y `disponible` en el
+  // ejemplo del PDF. Se mira el que venga.
+  const sinProcesar = depositos
+    .filter((d) => {
+      const marca = d.procesadas ?? d.disponible;
+      return marca != null && String(marca).trim() === "0";
+    })
+    .map((d) => String(d.anno ?? ""))
+    .filter(Boolean);
+
   return {
     estado: "ok",
-    datos: { nif, depositos, ejercicios },
+    datos: { nif, depositos, ejercicios, sinProcesar },
     origenClave: bruto.origenClave,
   };
 }

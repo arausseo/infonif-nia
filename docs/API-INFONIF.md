@@ -905,3 +905,84 @@ como a los registros del plan de Base de Datos, que son **otra moneda que no se
 convierte**. Tener 5.000 registros de listado no da ni una consulta de empresa.
 Por eso el resultado lleva `moneda: "creditos_consulta"` y el aviso lo dice
 expresamente.
+
+---
+
+# Lo que añadió la documentación oficial (API Infonif 4.10, 11-09-2026)
+
+El PDF está en `docs/`. Confirmó lo que ya habíamos deducido probando —cabecera
+`ICIF-APIKEY`, rutas, contenedores `empresa` y `listado.*`— y añadió cuatro
+cosas que no se pueden adivinar mirando una respuesta.
+
+## `magnitud`: en qué unidad vienen las cifras
+
+Cada partida del balance trae `magnitud`, y multiplica:
+
+| valor | significa |
+|---|---|
+| `1` | euros |
+| `1000` | miles de euros |
+| `1000000` | millones de euros |
+
+**Es el hallazgo importante.** No se estaba leyendo, así que una empresa que
+presentara en miles habría salido con cifras mil veces menores y con la etiqueta
+«euros» al lado. Nada falla, nada avisa: solo es falso. En las empresas probadas
+`magnitud` siempre ha venido `1`, que es justo lo que hacía invisible el
+problema.
+
+Ahora `valoresPorEjercicio()` convierte a euros antes de devolver nada.
+
+## Los campos vacíos: `{}` en la documentación, `""` en la respuesta
+
+El PDF escribe los vacíos como objeto sin claves —`fechacese: {}`,
+`subgrupo: {}`, `urlficheroborme: {}`— que es lo que sale al convertir XML a
+JSON. Con `?tipo=json` la respuesta real usa `""`: comprobado con 126 cargos de
+dos empresas, ninguno traía `{}`.
+
+O sea que **no estaba roto**, pero el esquema ahora acepta las dos formas. El
+modo de fallar era silencioso —`safeParse` rechaza el registro y el `flatMap` lo
+descarta— y habría afectado justo a los cargos vigentes, que son los que llevan
+la fecha de cese vacía.
+
+## `402`: otra forma de decir «no hay saldo»
+
+Documentado en tres endpoints y ausente de su código. Se trataba como avería, así
+que el usuario recibía «el servicio no responde» cuando lo que pasaba es que no
+le quedaba saldo. El texto distingue dos casos:
+
+- «No hay saldo para poder comprar el producto» → lo mismo que el 403.
+- «No hay ninguna solicitud para esas cuentas» → no es dinero: nadie ha pedido
+  todavía ese depósito.
+
+## `procesadas` / `disponible`: qué se puede entregar
+
+En `obtener-depositos-disponibles`, indica si Infonif ya tiene procesado ese
+depósito. De uno sin procesar se sabe que existe, pero no se pueden dar sus
+partidas.
+
+La documentación se contradice consigo misma: el ejemplo lo llama `disponible` y
+la tabla de propiedades de la misma página lo llama `procesadas`. La respuesta
+real trae `procesadas`. Se leen los dos.
+
+Encontrado en una empresa real: B98913379 tiene depósito de 2021 sin procesar.
+Sin esto, el agente lo habría ofrecido como disponible.
+
+## Enumeraciones que ya se pueden traducir
+
+**BORME, campo `tipo`:** `A` Sección primera, actos inscritos · `B` Sección
+primera, otros actos publicados · `C` Sección segunda, anuncios y avisos legales.
+
+**Grupo, campo `matriz`:** `1` es la matriz, `0` no lo es.
+
+**Depósitos, campo `consolidado`:** `1` cuentas consolidadas, `0` individuales.
+
+## Una contradicción entre el PDF y el código
+
+`obtener-cargos` documenta `estado`: **1 = Activos, 0 = Cesados**. Pero su
+`getEstado` hace `if (!data.estado)`, y en JavaScript el `0` es falso: pedir los
+cesados devuelve `400 Falta estado`.
+
+Es decir, **el valor documentado para el histórico es inalcanzable**. Comprobado
+contra el API: `0` da 400, `1` funciona, `2` y `3` dan 204. Por eso la
+herramienta solo ofrece los vigentes: prometer el histórico sería prometer algo
+que el servicio no puede dar.

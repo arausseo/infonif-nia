@@ -31,7 +31,7 @@ haya depositado o dejado de depositar no es una valoración.`,
     });
     if (resultado.estado !== "ok") return sinDato(resultado, "ninguna cuenta depositada", { usuarioId: ctx.derechos.usuarioId, senal: ctx.senal });
 
-    const { ejercicios, depositos } = resultado.datos;
+    const { ejercicios, depositos, sinProcesar } = resultado.datos;
 
     const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
 
@@ -47,6 +47,12 @@ haya depositado o dejado de depositar no es una valoración.`,
           // descargar_cuentas_anuales, que lo exige.
           consolidado: String(d.consolidado) === "1",
         })),
+        ...(sinProcesar.length > 0
+          ? {
+              sinProcesar,
+              notaSinProcesar: `De ${sinProcesar.join(", ")} consta el depósito en el Registro pero Infonif todavía no lo ha procesado. Puedes decir que existe; NO ofrezcas sus cifras ni su descarga como si estuvieran listas.`,
+            }
+          : {}),
         ...(ejercicios.length === 0
           ? { aviso: "No consta ninguna cuenta anual depositada para esta empresa." }
           : {}),

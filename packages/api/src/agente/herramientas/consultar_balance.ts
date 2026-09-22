@@ -133,7 +133,11 @@ produce el Informe de Riesgo, nunca tú.`,
         ejerciciosDisponibles: ejercicios,
         moneda: "EUR",
         partidas: filas,
-        nota: "Importes en euros. Cada cifra va con su ejercicio: no los mezcles ni los redondees a ojo.",
+        // «En euros» ahora es cierto. Antes se afirmaba igual, pero los valores
+        // subían tal cual: si la empresa presentaba en miles, la cifra salía mil
+        // veces menor con la etiqueta «euros» al lado. La conversión la hace
+        // `valoresPorEjercicio` con el campo `magnitud`.
+        nota: "Importes ya convertidos a euros. Cada cifra va con su ejercicio: no los mezcles ni los redondees a ojo.",
         ...(partidas === "todas" || Array.isArray(partidas)
           ? {}
           : { aviso: "Son las principales. Hay más si las piden." }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sinDato } from "../../agente/herramientas/_icif.js";
-import { comoLista } from "./tipos.js";
+import { ActoBorme, Cargo, comoLista, valoresPorEjercicio } from "./tipos.js";
 
 /**
  * Dos piezas, y las dos fallan en silencio si están mal.
@@ -152,5 +152,104 @@ describe("sinDato", () => {
       expect(m["cargos"]).toBeUndefined();
       expect(m["datos"]).toBeUndefined();
     }
+  });
+});
+
+describe("lo que enseñó la documentación oficial (API Infonif 4.10)", () => {
+  /**
+   * La documentación representa los campos vacíos como `{}`, no como cadena
+   * vacía. La respuesta real con `?tipo=json` usa `""` —comprobado con 126
+   * cargos de dos empresas— así que esto no estaba rompiendo nada, pero `{}` es
+   * la forma que sale al convertir XML a JSON y `?tipo=xml` existe.
+   *
+   * Merece test porque el modo de fallar es silencioso: el registro se descarta
+   * y la herramienta responde «no consta ninguno». Y un cargo VIGENTE siempre
+   * lleva la fecha de cese vacía, así que se perderían justo esos.
+   *
+   * El ejemplo es literal del PDF, página 8.
+   */
+  it("un cargo vigente NO se pierde por tener la fecha de cese vacía", () => {
+    const delPdf = {
+      estado: "Activo",
+      nombre: "APELLIDO1 APELLIDO2 NOMBRE PERSONA1",
+      cargo: "Administrador Mancomunado",
+      fechanombramiento: "2018-12-17",
+      fechacese: {},
+      vinculaciones: "1",
+    };
+
+    const leido = Cargo.safeParse(delPdf);
+    expect(leido.success).toBe(true);
+    expect(leido.success && leido.data.nombre).toBe("APELLIDO1 APELLIDO2 NOMBRE PERSONA1");
+    expect(leido.success && leido.data.fechacese).toBeUndefined();
+  });
+
+  it("y un acto del BORME tampoco, por no tener subgrupo ni PDF", () => {
+    const delPdf = {
+      tipo: "A",
+      fechaborme: "2023-11-24",
+      grupo: "Datos registrales.",
+      subgrupo: {},
+      detalle: "T 11111, L 2222, F 33, S 8, H V 123456",
+      urlficheroborme: {},
+      cve: "BORME-A-2023-111-XX",
+    };
+    expect(ActoBorme.safeParse(delPdf).success).toBe(true);
+  });
+
+  /**
+   * `magnitud` dice en qué unidad vienen las partidas: 1 euros, 1000 miles,
+   * 1000000 millones. Estaba documentado y no se leía.
+   *
+   * Sin aplicarlo, una empresa que presenta en miles salía con cifras mil veces
+   * menores y con la etiqueta «euros» al lado. Nada fallaba: solo era falso.
+   */
+  it("convierte a euros según la magnitud declarada", () => {
+    const enEuros = valoresPorEjercicio({
+      codigo: "10000",
+      descripcion: "Total activo",
+      valor2024: 424734.82,
+      magnitud: 1,
+    });
+    const enMiles = valoresPorEjercicio({
+      codigo: "10000",
+      descripcion: "Total activo",
+      valor2024: 424734.82,
+      magnitud: 1000,
+    });
+
+    expect(enEuros["2024"]).toBe(424734.82);
+    expect(enMiles["2024"]).toBe(424734820);
+    // Mil veces: exactamente el error que se estaba cometiendo.
+    expect(enMiles["2024"]).toBe(enEuros["2024"]! * 1000);
+  });
+
+  it("acepta los importes que llegan como texto, que el PDF documenta así", () => {
+    const v = valoresPorEjercicio({
+      codigo: "10000",
+      descripcion: "Total activo",
+      valor2024: "424734.82",
+      magnitud: 1,
+    });
+    expect(v["2024"]).toBe(424734.82);
+  });
+
+  it("un año sin dato no es un cero", () => {
+    // En la respuesta real de Mercadona, el 20 % de los valores son "". Si se
+    // colaran como 0, el agente diría que esa partida vale cero ese año.
+    const v = valoresPorEjercicio({
+      codigo: "10000",
+      descripcion: "Total activo",
+      valor2024: "",
+      valor2023: 100,
+      magnitud: 1,
+    });
+    expect(v["2024"]).toBeUndefined();
+    expect(v["2023"]).toBe(100);
+  });
+
+  it("sin magnitud se asume euros y no se toca el valor", () => {
+    const v = valoresPorEjercicio({ codigo: "1", descripcion: "x", valor2024: 50 });
+    expect(v["2024"]).toBe(50);
   });
 });

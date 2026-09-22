@@ -152,6 +152,32 @@ export async function icif<T = unknown>(
       return { estado: "sinDatos", origenClave: clave.origen };
     }
 
+    /**
+     * 402, que aparece en la documentación y no en su código. Sirve para dos
+     * cosas distintas y el texto las separa:
+     *
+     * - «No hay saldo para poder comprar el producto» — lo mismo que el 403,
+     *   pero por otra puerta. Sin esto subía como avería y el usuario recibía
+     *   «el servicio no responde» cuando lo que pasaba es que no le quedaba
+     *   saldo: ni se le ofrecía recargar, ni sabía por qué.
+     * - «No hay ninguna solicitud para esas cuentas» — en las partidas de un
+     *   depósito. No es dinero: es que nadie ha pedido todavía ese depósito.
+     */
+    if (respuesta.status === 402) {
+      const detalle = (await respuesta.text()).slice(0, 300);
+
+      if (/saldo/i.test(detalle)) {
+        registro.info(
+          { ruta, usuarioId, clave: clave.origen },
+          "el gateway dice que no hay saldo (402)",
+        );
+        return { estado: "sinCreditos", origenClave: clave.origen };
+      }
+
+      registro.info({ ruta, detalle }, "402 sin solicitud previa");
+      return { estado: "sinDatos", origenClave: clave.origen };
+    }
+
     if (!respuesta.ok) {
       const detalle = (await respuesta.text()).slice(0, 500);
       throw new ErrorIcif(respuesta.status, ruta, detalle);

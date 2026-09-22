@@ -31,7 +31,37 @@ export function comoLista<T>(valor: T | T[] | undefined | null): T[] {
   return Array.isArray(valor) ? valor : [valor];
 }
 
-const texto = z.union([z.string(), z.number()]).optional();
+/**
+ * Un campo de texto del gateway, tolerante con su forma de decir «vacío».
+ *
+ * **Este API representa los campos vacíos como `{}`, no como cadena vacía.** Es
+ * sistemático y está en la documentación: `fechacese: {}` en un cargo vigente,
+ * `subgrupo: {}` y `urlficheroborme: {}` en un acto del BORME. Sale de convertir
+ * XML a JSON: un elemento sin contenido se vuelve un objeto sin claves.
+ *
+ * **Con `?tipo=json` la respuesta real usa `""`, no `{}`**, y eso el esquema ya
+ * lo aceptaba: comprobado con 126 cargos de dos empresas, ninguno traía `{}`.
+ * Así que esto NO estaba rompiendo nada hoy. Se corrige igualmente porque la
+ * forma documentada es la del `{}` —sale de convertir XML a JSON, y `?tipo=xml`
+ * es una opción del mismo API—, y porque el modo de fallar sería el peor
+ * posible: `safeParse` rechaza el registro, el `flatMap` lo descarta sin avisar
+ * y la herramienta contesta «no consta ninguno». Un administrador en activo
+ * siempre lleva la fecha de cese vacía, así que se perderían justo los cargos
+ * vigentes.
+ */
+const texto = z.preprocess(
+  (v) => (esVacio(v) ? undefined : v),
+  z.union([z.string(), z.number()]).optional(),
+);
+
+/** `{}`, `[]`, `null` y la cadena vacía son la misma cosa: no hay dato. */
+function esVacio(valor: unknown): boolean {
+  if (valor == null) return true;
+  if (typeof valor === "string") return valor.trim() === "";
+  if (Array.isArray(valor)) return valor.length === 0;
+  if (typeof valor === "object") return Object.keys(valor as object).length === 0;
+  return false;
+}
 
 // ─── Perfil ──────────────────────────────────────────────────────────────────
 
@@ -179,7 +209,16 @@ export const Deposito = z
     anno: texto,
     /** 0 individuales, 1 consolidadas. */
     consolidado: texto,
+    /**
+     * Si Infonif ya tiene procesado ese depósito.
+     *
+     * La documentación se contradice consigo misma: el ejemplo de respuesta lo
+     * llama `disponible` y la tabla de propiedades de la MISMA página lo llama
+     * `procesadas`. La respuesta real trae `procesadas`, así que se declaran los
+     * dos y se lee el que venga.
+     */
     procesadas: texto,
+    disponible: texto,
   })
   .passthrough();
 
@@ -207,17 +246,53 @@ export const Partida = z
   .object({
     codigo: z.union([z.string(), z.number()]),
     descripcion: z.string(),
+    /**
+     * **En qué unidad vienen los valores**: 1 euros, 1000 miles de euros,
+     * 1000000 millones. Está documentado y no se leía, y es el peor sitio
+     * posible para un descuido: una empresa que presenta en miles habría salido
+     * con cifras mil veces menores sin que nada fallara. Regla 4.
+     */
+    magnitud: z.union([z.string(), z.number()]).optional(),
   })
   .passthrough();
 
 export type Partida = z.infer<typeof Partida>;
 
-/** Saca los `valorYYYY` de una partida, en euros y por ejercicio. */
+/**
+ * Saca los `valorYYYY` de una partida, **ya convertidos a euros**.
+ *
+ * Dos detalles que la respuesta real obliga a tratar:
+ *
+ * - El mismo documento mezcla números y cadenas en el mismo campo. En Mercadona
+ *   un 20 % de los valores llegan como texto; ahí todos son `""` —años sin
+ *   dato— pero el PDF documenta importes reales como `"424734.82"`. Aceptando
+ *   solo `number` se perdían sin avisar.
+ * - `magnitud` multiplica. Si falta se asume 1, que es lo que devuelve el API
+ *   en la práctica y equivale a no tocar el valor.
+ */
 export function valoresPorEjercicio(partida: Partida): Record<string, number> {
+  const escala = aNumero(partida.magnitud) ?? 1;
   const salida: Record<string, number> = {};
+
   for (const [clave, valor] of Object.entries(partida)) {
     const anio = /^valor(\d{4})$/.exec(clave)?.[1];
-    if (anio && typeof valor === "number") salida[anio] = valor;
+    if (!anio) continue;
+    const n = aNumero(valor);
+    if (n !== undefined) salida[anio] = n * escala;
   }
   return salida;
+}
+
+/** Número, o cadena que lo sea. La cadena vacía es «no hay dato», no un cero. */
+function aNumero(valor: unknown): number | undefined {
+  if (typeof valor === "number") return Number.isFinite(valor) ? valor : undefined;
+  if (typeof valor !== "string") return undefined;
+
+  const limpio = valor.trim();
+  if (limpio === "") return undefined;
+
+  // El API usa el punto como separador decimal; se admite la coma por si alguna
+  // partida viniera con formato español.
+  const n = Number(limpio.replace(",", "."));
+  return Number.isFinite(n) ? n : undefined;
 }
