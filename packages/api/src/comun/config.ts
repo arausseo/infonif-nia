@@ -110,9 +110,30 @@ export const config = leerEntorno();
 
 export const esProduccion = config.NODE_ENV === "production";
 
-export const origenesPermitidos = config.ORIGENES_PERMITIDOS.split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+/**
+ * Páginas donde se embebe el widget. Van fijos para no depender de que el
+ * `.env` de cada máquina recuerde todos los vhosts del portal.
+ *
+ * CORS compara el `Origin` del navegador por igualdad exacta: `https://`,
+ * sin barra final, sin ruta. Extraer de `ORIGENES_PERMITIDOS` no sustituye
+ * esta lista: la une.
+ */
+const ORIGENES_PORTAL = [
+  "https://infonif.economia3.com",
+  "https://infoniftest.economia3.com",
+  "https://devel.infonif.es",
+  "https://www.infonif.es",
+  "https://infonif.es",
+];
+
+export const origenesPermitidos = [
+  ...new Set([
+    ...ORIGENES_PORTAL,
+    ...config.ORIGENES_PERMITIDOS.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
+  ]),
+];
 
 /**
  * Para claves que solo hacen falta en algunas fases. Falla en el arranque de la

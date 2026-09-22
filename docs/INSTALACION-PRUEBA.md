@@ -321,9 +321,10 @@ REDIS_URL=redis://localhost:6379
 AGENT_SHARED_SECRET=<el que hayas generado>
 TOKEN_TTL_SEGUNDOS=900
 
-# De dónde se aceptan peticiones del navegador. Sin esto el widget carga pero
-# la conversación falla con un error de CORS que en la consola parece otra cosa.
-ORIGENES_PERMITIDOS=https://infonif.economia3.com
+# Extra a los orígenes fijos del portal (economía3, infoniftest, devel, www,
+# infonif.es). Sirve para localhost o un vhost que aún no esté en código.
+# Con esquema, sin barra final, separados por comas.
+ORIGENES_PERMITIDOS=http://localhost:5174
 
 NODE_ENV=production
 PUERTO=3000
