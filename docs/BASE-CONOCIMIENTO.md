@@ -288,6 +288,68 @@ continua.
 
 ---
 
+## 4c. Con dos máquinas en propio
+
+Se separan por **perfil de carga**, no por componente: una sirve, otra ingiere.
+
+| | A — Consulta | B — Ingesta |
+|---|---|---|
+| Qué corre | API, Redis, PostgreSQL + pgvector | OCR, extracción, troceado, embeddings |
+| Perfil | Poca CPU, siempre encendida, sensible a latencia | Mucha CPU, a ráfagas, puede apagarse |
+| Tamaño | 2–4 vCPU, 8 GB, 100 GB SSD | 4–8 vCPU, 8–16 GB, disco temporal |
+| Es… | La Fedora actual ampliada a 8 GB | Una VM nueva, o una que solo se enciende para lotes |
+
+La ingesta es lo que consume a lo bruto, y ya tuvo un OOM en este proyecto. En
+la misma máquina que el API, cada lote ralentiza al agente y un fallo de memoria
+tumba las conversaciones. Separadas, B puede morir y A ni se entera. B solo
+escribe en el Postgres de A.
+
+Postgres no necesita máquina propia: a esta escala convive con el API. Y las dos
+en el mismo segmento de red — B tiene que llegar al 5432 de A, y ya sabemos lo
+que cuesta cruzar segmentos en esa red.
+
+## 4d. SaaS que ayuda, y SaaS que no
+
+Primero, qué datos pueden salir. Las cuentas depositadas son documentos públicos
+del Registro Mercantil: Infonif pagó el acceso, pero no son datos de clientes.
+Mandarlas a un OCR externo es de bajo riesgo. Los informes propios —Comercial,
+Riesgo— llevan el criterio y el scoring de Infonif: **esos no salen**.
+
+**OCR — sí, y es donde más aporta.**
+
+| Servicio | Qué da | Orden de magnitud |
+|---|---|---|
+| Azure Document Intelligence (*layout*) | Texto **y estructura**: títulos, secciones, tablas | ~10 $ / 1.000 páginas |
+| Amazon Textract | Texto limpio de escaneos malos | ~1,5 $ / 1.000 páginas |
+| Mistral OCR | Texto con estructura en Markdown, muy barato | ~1 $ / 1.000 páginas |
+
+La diferencia que importa: Textract y Mistral sacan el texto; Azure Document
+Intelligence saca además **qué es un título de nota y qué es su cuerpo**. Es lo
+que hace falta para trocear una memoria escaneada por secciones, y no se deduce
+de otra forma. Con muchos escaneados malos, es el que encaja. Con pocos,
+Tesseract en propio.
+
+**Embeddings — opcional, ganancia pequeña.** Cohere, Voyage, Bedrock. Solo salen
+fragmentos de texto. Mejoran algo frente a `e5-small`, pero `e5-large` en propio
+recupera parecido sin sacar nada.
+
+**Almacén vectorial — no.** Pinecone, Qdrant Cloud, Weaviate. pgvector hace lo
+mismo a este volumen, gratis y en casa.
+
+**Plataformas RAG completas — con cuidado.** Bedrock Knowledge Bases, Azure AI
+Search, Vectara. Ahorran construir el pipeline, pero trocean por tamaño o por
+«semántica» genérica, y todo este documento explica por qué aquí hay que
+trocear por notas de la memoria. Bedrock admite una función propia de troceado;
+Azure AI Search puede apoyarse en Document Intelligence para hacerlo por
+estructura. Viables, pero hay que verificar esa capacidad concreta antes de
+elegir: sin ella, la plataforma entera resuelve el problema equivocado.
+
+**Recomendación:** dos máquinas en propio, Tesseract en B, y una sola cuenta de
+SaaS —la de OCR— activada solo cuando la medición de la fase 3 diga que Tesseract
+no llega. Si llega, no se contrata nada.
+
+---
+
 ## 5. Lo que hace que esto salga mal
 
 Por experiencia con este tipo de sistema, los fallos vienen de aquí y no de la
