@@ -42,7 +42,7 @@ pagarlo. Dilo tal cual y no lo presentes como algo que se pueda comprar.`,
     }
 
     const p = resultado.datos;
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
     // Los campos que de verdad se preguntan, separados del resto: así el modelo
     // ve de un vistazo si tiene lo que le han pedido.
@@ -57,6 +57,7 @@ pagarlo. Dilo tal cual y no lo presentes como algo que se pueda comprar.`,
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         razonSocial: p.razonSocial,
         contacto,

@@ -17,23 +17,41 @@ import { obtenerRedis } from "../redis/cliente.js";
  * nada más. Pedir permiso para cada herramienta sería pedir cuatro veces lo
  * mismo y cobrar una, que es la peor manera de tratar a alguien.
  *
- * ## Los tres estados
+ * ## Los estados
  *
  * - **preguntar** (por defecto) — cada empresa nueva necesita su sí.
- * - **sesion** — el usuario ha dicho que adelante, y no se le vuelve a
- *   preguntar mientras dure la conversación.
  * - la lista de NIF ya autorizados uno a uno.
+ * - **sesion** — adelante mientras dure esta conversación.
+ * - **siempre** — adelante también en las conversaciones siguientes.
  *
- * El permiso vive en la conversación y muere con ella. No se guarda un «este
- * usuario siempre dice que sí» entre sesiones: eso ya no sería un permiso, sería
- * una suposición.
+ * Los tres primeros viven en la conversación y mueren con ella. El cuarto no:
+ * se guarda contra el USUARIO y sobrevive a la sesión.
+ *
+ * Al principio `siempre` no existía a propósito —un permiso que el usuario no
+ * recuerda haber dado se parece demasiado a una suposición— pero es su saldo y
+ * lo pidió. Lo que evita que se convierta en una suposición son tres cosas, y
+ * ninguna es opcional:
+ *
+ * 1. **Caduca** a los 90 días. Un permiso permanente de verdad acabaría
+ *    gastando saldo de alguien que ya ni se acuerda.
+ * 2. **Se dice.** La primera vez que se usa en una conversación nueva, el
+ *    agente avisa de que está activo (lo indica el prompt).
+ * 3. **Se retira** con el mismo «revocar», que limpia las dos capas.
+ *
+ * Y necesita `usuarioId`: sin él no hay a quién asociarlo. Un anónimo puede
+ * autorizar la sesión, nunca el «siempre».
  */
 
 const PREFIJO = "nia:icif:autorizacion:";
 /** Lo que dura una conversación con holgura. Al caducar se vuelve a preguntar. */
 const TTL_SEGUNDOS = 86_400;
 
-export type ModoAutorizacion = "preguntar" | "sesion";
+/** El permiso permanente, por usuario. Se renueva cada vez que se usa. */
+const PREFIJO_USUARIO = "nia:icif:autorizacion:usuario:";
+/** 90 días. Pasados, se vuelve a preguntar una vez y a correr. */
+const TTL_SIEMPRE_SEGUNDOS = 7_776_000;
+
+export type ModoAutorizacion = "preguntar" | "sesion" | "siempre";
 
 export interface Autorizacion {
   modo: ModoAutorizacion;
@@ -41,6 +59,11 @@ export interface Autorizacion {
   nifs: string[];
   /** Si hay que ir contando el saldo gastado. El usuario puede pedir que no. */
   informar: boolean;
+  /**
+   * Si ya se le ha recordado en ESTA conversación que tiene el permiso
+   * permanente activo. Se avisa una vez, no en cada consulta.
+   */
+  avisadoSiempre?: boolean;
   /**
    * Último saldo que vimos, para poder decir cuánto ha costado ESTA consulta.
    *
@@ -83,6 +106,7 @@ export async function leerAutorizacion(
       modo: leido.modo === "sesion" ? "sesion" : "preguntar",
       nifs: Array.isArray(leido.nifs) ? leido.nifs : [],
       informar: leido.informar !== false,
+      ...(leido.avisadoSiempre === true ? { avisadoSiempre: true } : {}),
       ...(typeof leido.ultimoSaldo === "number"
         ? { ultimoSaldo: leido.ultimoSaldo }
         : {}),
@@ -116,13 +140,80 @@ async function guardar(
   }
 }
 
+// ─── El permiso permanente, por usuario ──────────────────────────────────────
+
+function claveUsuario(usuarioId: number): string {
+  return `${PREFIJO_USUARIO}${usuarioId}`;
+}
+
+/**
+ * ¿Este usuario dejó dicho que no se le pregunte más, ni siquiera en
+ * conversaciones nuevas?
+ *
+ * Falla cerrado: si Redis no responde, se preguntará. Preguntar de más molesta;
+ * gastar de más cuesta dinero.
+ */
+export async function tieneAutorizacionPermanente(
+  usuarioId: number | undefined,
+): Promise<boolean> {
+  if (usuarioId == null) return false;
+  try {
+    return (await obtenerRedis().get(claveUsuario(usuarioId))) !== null;
+  } catch (error) {
+    registro.warn(
+      { usuarioId, err: String(error) },
+      "no se pudo leer la autorización permanente; se preguntará",
+    );
+    return false;
+  }
+}
+
+/** Deja dicho que sí para las próximas conversaciones. Caduca a los 90 días. */
+export async function autorizarSiempre(usuarioId: number | undefined): Promise<boolean> {
+  if (usuarioId == null) return false;
+  try {
+    await obtenerRedis().set(
+      claveUsuario(usuarioId),
+      new Date().toISOString(),
+      "EX",
+      TTL_SIEMPRE_SEGUNDOS,
+    );
+    registro.info({ usuarioId }, "el usuario autoriza sus créditos de forma permanente");
+    return true;
+  } catch (error) {
+    registro.warn(
+      { usuarioId, err: String(error) },
+      "no se pudo guardar la autorización permanente",
+    );
+    return false;
+  }
+}
+
+/** Lo retira. Un permiso que no se puede retirar no es un permiso. */
+export async function revocarSiempre(usuarioId: number | undefined): Promise<void> {
+  if (usuarioId == null) return;
+  try {
+    await obtenerRedis().del(claveUsuario(usuarioId));
+    registro.info({ usuarioId }, "retirada la autorización permanente");
+  } catch (error) {
+    registro.warn(
+      { usuarioId, err: String(error) },
+      "no se pudo retirar la autorización permanente",
+    );
+  }
+}
+
 /** ¿Se puede consultar este NIF sin volver a preguntar? */
 export async function estaAutorizado(
   conversacionId: string | undefined,
   nif: string,
+  usuarioId?: number,
 ): Promise<boolean> {
   const autorizacion = await leerAutorizacion(conversacionId);
-  return autorizacion.modo === "sesion" || autorizacion.nifs.includes(normalizar(nif));
+  if (autorizacion.modo === "sesion" || autorizacion.nifs.includes(normalizar(nif))) {
+    return true;
+  }
+  return tieneAutorizacionPermanente(usuarioId);
 }
 
 /** Autoriza una empresa concreta. */
@@ -150,7 +241,15 @@ export async function autorizarSesion(conversacionId: string | undefined): Promi
  *
  * Existe porque un permiso que no se puede retirar no es un permiso.
  */
-export async function revocarSesion(conversacionId: string | undefined): Promise<void> {
+export async function revocarSesion(
+  conversacionId: string | undefined,
+  usuarioId?: number,
+): Promise<void> {
+  // Se limpian LAS DOS capas. Si solo se borrara la de la conversación, el
+  // usuario diría «deja de gastar» y seguiríamos gastando por el permiso
+  // permanente: exactamente lo contrario de lo que acaba de pedir.
+  await revocarSiempre(usuarioId);
+
   if (!conversacionId) return;
   const autorizacion = await leerAutorizacion(conversacionId);
   autorizacion.modo = "preguntar";
@@ -167,6 +266,24 @@ export async function fijarInformar(
   const autorizacion = await leerAutorizacion(conversacionId);
   autorizacion.informar = informar;
   await guardar(conversacionId, autorizacion);
+}
+
+/**
+ * Marca que ya se le ha avisado del permiso permanente en esta conversación.
+ *
+ * Devuelve si era la primera vez. Sirve para decirlo UNA vez: repetirlo en cada
+ * consulta sería ruido, y no decirlo nunca deja al usuario gastando saldo por
+ * un permiso que dio hace semanas y no recuerda.
+ */
+export async function marcarAvisoSiempre(
+  conversacionId: string | undefined,
+): Promise<boolean> {
+  if (!conversacionId) return false;
+  const autorizacion = await leerAutorizacion(conversacionId);
+  if (autorizacion.avisadoSiempre) return false;
+  autorizacion.avisadoSiempre = true;
+  await guardar(conversacionId, autorizacion);
+  return true;
 }
 
 /** Apunta el saldo que acabamos de ver, para saber cuánto cuesta la próxima. */

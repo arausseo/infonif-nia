@@ -33,12 +33,13 @@ haya depositado o dejado de depositar no es una valoración.`,
 
     const { ejercicios, depositos, sinProcesar } = resultado.datos;
 
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
 
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         ejercicios,
         depositos: depositos.map((d) => ({

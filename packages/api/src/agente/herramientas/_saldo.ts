@@ -1,4 +1,9 @@
-import { leerAutorizacion, recordarSaldo } from "../../datos/icif/autorizacion.js";
+import {
+  leerAutorizacion,
+  marcarAvisoSiempre,
+  recordarSaldo,
+  tieneAutorizacionPermanente,
+} from "../../datos/icif/autorizacion.js";
 import { consultarCreditos } from "../../datos/icif/credito.js";
 import type { ContextoTool } from "../tipos.js";
 
@@ -37,9 +42,25 @@ export interface Saldo {
 
 export async function saldoTrasConsultar(
   ctx: ContextoTool,
-): Promise<{ saldo?: Saldo; nota?: string }> {
+): Promise<{ saldo?: Saldo; nota?: string; avisoPermanente?: string }> {
+  /**
+   * El recordatorio del permiso permanente.
+   *
+   * Va aquí y no solo en el prompt porque **el modelo no puede saberlo**: la
+   * consulta le sale bien y no tiene forma de distinguir si fue porque el
+   * usuario acaba de autorizar o porque lo dejó dicho hace tres semanas. Se lo
+   * dice el dato, una sola vez por conversación.
+   */
+  const avisoPermanente = (await tieneAutorizacionPermanente(ctx.derechos.usuarioId))
+    ? (await marcarAvisoSiempre(ctx.conversacionId))
+      ? "Este usuario tiene la autorización permanente activa, por eso no se le ha preguntado. Mencionaselo UNA vez en esta conversación, de pasada, y recuérdale que puede retirarla cuando quiera."
+      : undefined
+    : undefined;
+
   const autorizacion = await leerAutorizacion(ctx.conversacionId);
-  if (!autorizacion.informar) return {};
+  if (!autorizacion.informar) {
+    return avisoPermanente ? { avisoPermanente } : {};
+  }
 
   const consulta = await consultarCreditos(ctx.derechos.usuarioId, {
     senal: ctx.senal,
@@ -54,12 +75,14 @@ export async function saldoTrasConsultar(
     return {
       saldo: { disponibles },
       nota: "Dile cuántos créditos le quedan, en una línea y sin dramatismo.",
+      ...(avisoPermanente ? { avisoPermanente } : {}),
     };
   }
 
   const gastados = Math.max(0, anterior - disponibles);
   return {
     saldo: { gastados, disponibles },
+    ...(avisoPermanente ? { avisoPermanente } : {}),
     nota:
       gastados === 0
         ? "Esta empresa ya estaba consultada este mes: NO ha gastado nada. Si lo mencionas, dilo así."

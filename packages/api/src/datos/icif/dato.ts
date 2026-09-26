@@ -300,7 +300,9 @@ async function llamar(
   senal: AbortSignal | undefined,
   conversacionId?: string,
 ): Promise<ResultadoIcif<unknown>> {
-  if (!(await estaAutorizado(conversacionId, cuerpo.nif))) {
+  // El usuarioId entra aquí porque el permiso permanente es suyo, no de la
+  // conversación: sin él, «no me preguntes más» se olvidaría en el chat siguiente.
+  if (!(await estaAutorizado(conversacionId, cuerpo.nif, usuarioId))) {
     return { estado: "requiereAutorizacion", nif: cuerpo.nif };
   }
   return icif(ruta, usuarioId, senal ? { cuerpo, senal } : { cuerpo });

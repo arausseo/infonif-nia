@@ -39,12 +39,13 @@ uses para varias empresas de un segmento: es de una en una.`,
 
     const { cargos } = resultado.datos;
 
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
 
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         cargos: cargos.map((c) => ({
           nombre: c.nombre,

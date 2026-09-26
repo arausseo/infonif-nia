@@ -123,12 +123,13 @@ produce el Informe de Riesgo, nunca tú.`,
         : p.valores,
     }));
 
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
 
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         ejerciciosDisponibles: ejercicios,
         moneda: "EUR",

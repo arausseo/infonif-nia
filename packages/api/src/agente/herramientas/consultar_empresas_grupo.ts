@@ -35,12 +35,13 @@ a una empresa concreta, que es otra cosa.`,
 
     const { empresas } = resultado.datos;
 
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
 
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         empresas: empresas.map((e) => ({
           nif: e.nif,

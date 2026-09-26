@@ -40,12 +40,13 @@ que le vaya mal. Si te piden esa lectura, es valoración de riesgo y no la haces
     const todos = resultado.datos.actos;
     const actos = todos.slice(0, limite ?? 10);
 
-    const { saldo, nota: notaSaldo } = await saldoTrasConsultar(ctx);
+    const { saldo, nota: notaSaldo, avisoPermanente } = await saldoTrasConsultar(ctx);
 
 
     return {
       paraElModelo: {
         ...(saldo ? { creditos: saldo, notaCreditos: notaSaldo } : {}),
+        ...(avisoPermanente ? { avisoPermanente } : {}),
         nif,
         actos: actos.map((a) => ({
           fecha: a.fechaborme,

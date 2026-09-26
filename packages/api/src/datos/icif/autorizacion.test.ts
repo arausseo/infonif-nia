@@ -18,16 +18,20 @@ vi.mock("../redis/cliente.js", () => ({
       almacen.set(clave, valor);
       return "OK";
     },
+    del: async (clave: string) => (almacen.delete(clave) ? 1 : 0),
   }),
 }));
 
 const {
   autorizarNif,
   autorizarSesion,
+  autorizarSiempre,
   estaAutorizado,
   fijarInformar,
   leerAutorizacion,
   revocarSesion,
+  revocarSiempre,
+  tieneAutorizacionPermanente,
 } = await import("./autorizacion.js");
 
 beforeEach(() => almacen.clear());
@@ -111,5 +115,55 @@ describe("informar del saldo", () => {
     // quieras». Si esto se mezclara, callar implicaría autorizar.
     expect(await estaAutorizado("c1", "A46103834")).toBe(true);
     expect(await estaAutorizado("c1", "B98001720")).toBe(false);
+  });
+});
+
+describe("autorización permanente", () => {
+  const USUARIO = 133627;
+  const OTRO = 999001;
+
+  it("sobrevive a la conversación, que es justo para lo que existe", async () => {
+    await autorizarSiempre(USUARIO);
+
+    // Otra conversación distinta, sin nada autorizado en ella.
+    expect(await estaAutorizado("conversacion-nueva", "A46103834", USUARIO)).toBe(true);
+  });
+
+  it("es de un usuario, no de todos", async () => {
+    await autorizarSiempre(USUARIO);
+    expect(await estaAutorizado("otra", "A46103834", OTRO)).toBe(false);
+  });
+
+  it("un anónimo no puede dejarla puesta", async () => {
+    // Sin usuarioId no hay a quién asociarla. Devuelve false para que la
+    // herramienta lo diga en vez de prometer algo que no va a pasar.
+    expect(await autorizarSiempre(undefined)).toBe(false);
+    expect(await estaAutorizado("c", "A46103834", undefined)).toBe(false);
+  });
+
+  it("revocar limpia LAS DOS capas", async () => {
+    const conv = "conversacion-con-todo";
+    await autorizarSiempre(USUARIO);
+    await autorizarSesion(conv);
+    expect(await estaAutorizado(conv, "A46103834", USUARIO)).toBe(true);
+
+    await revocarSesion(conv, USUARIO);
+
+    // Si solo se hubiera limpiado la sesión, el permiso permanente seguiría
+    // gastando: el usuario dice «para» y no paramos.
+    expect(await estaAutorizado(conv, "A46103834", USUARIO)).toBe(false);
+    expect(await tieneAutorizacionPermanente(USUARIO)).toBe(false);
+  });
+
+  it("sin permiso permanente se sigue preguntando", async () => {
+    expect(await estaAutorizado("c", "A46103834", USUARIO)).toBe(false);
+  });
+
+  it("revocarSiempre por su cuenta tambien lo quita", async () => {
+    await autorizarSiempre(USUARIO);
+    expect(await tieneAutorizacionPermanente(USUARIO)).toBe(true);
+
+    await revocarSiempre(USUARIO);
+    expect(await tieneAutorizacionPermanente(USUARIO)).toBe(false);
   });
 });
