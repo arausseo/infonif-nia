@@ -237,6 +237,57 @@ Lo que no cambia entre las dos: el almacén y la consulta se quedan en casa.
 
 ---
 
+## 4b. Capacidad: qué máquina hace falta
+
+Poca. Lo que hay que dimensionar es la memoria, y hay un dato real del proyecto:
+el proceso de embeddings **murió con 2 GB** en la Fedora (`exit 137`, el OOM
+killer) y necesitó ~4 GB solo para cargar el modelo y vectorizar 627 documentos.
+La ingesta hace lo mismo con más documentos, y comparte máquina con PostgreSQL,
+Redis y el API. **8 GB, no menos.**
+
+### PoC en AWS
+
+| | |
+|---|---|
+| Instancia | `t3.large` — 2 vCPU, 8 GB |
+| Disco | 50 GB gp3. Los PDF no van aquí |
+| Coste | ~65–75 $/mes bajo demanda en Irlanda. Verificar en la calculadora |
+| Qué corre | PostgreSQL + pgvector, Redis, el API, la ingesta. Todo en una |
+
+Tamaño de la base, para situarlo: 10.000 documentos × 40 pasajes × 384
+dimensiones ≈ 600 MB de vectores, ~1,5 GB con índice. Cabe de sobra.
+
+### Dónde aprieta: el lote histórico
+
+`t3` es una familia con ráfagas: gasta crédito de CPU y luego se frena. Perfecta
+para servir consultas, mala para vectorizar 10.000 documentos seguidos. La
+solución es pagar el pico una vez: parar la instancia, redimensionarla a
+`c7i.xlarge` (4 vCPU, sin ráfagas, ~0,18 $/h), correr el lote —horas, no días— y
+volver a `t3.large`. EC2 lo permite sin migrar nada.
+
+### Lo que no hace falta
+
+- **GPU.** `e5-small` en CPU vectoriza cientos de pasajes por minuto. Las
+  instancias con GPU (desde ~0,50 $/h) solo se justifican con un modelo grande
+  sobre cientos de miles de documentos.
+- **RDS.** Postgres gestionado (`db.t4g.small`, ~25 $/mes) tiene sentido cuando
+  se quieran copias automáticas. Para el PoC, Postgres en la EC2. Se migra
+  después sin tocar código.
+
+### Antes de encender nada: dónde está el API
+
+El API corre hoy en la Fedora del cliente, y `consultar_documentos` tiene que
+llegar al Postgres. Si la base va en AWS, o se mueve el API a la misma EC2
+durante el PoC —lo más simple— o hay que abrir un camino entre redes, que ya
+sabemos lo que cuesta en la suya.
+
+Y la alternativa que conviene no descartar: **hacer el PoC en la propia Fedora**.
+Subirla a 8 GB e instalar Postgres. Sin AWS, sin red que cruzar, sin coste. AWS
+empieza a tener sentido en la fase 3, cuando entran Textract y la ingesta
+continua.
+
+---
+
 ## 5. Lo que hace que esto salga mal
 
 Por experiencia con este tipo de sistema, los fallos vienen de aquí y no de la
